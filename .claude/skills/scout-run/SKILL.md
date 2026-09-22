@@ -22,12 +22,14 @@ If `profile/profile.md` is missing or still contains `{{`, stop and run `/scout-
 
 Then:
 1. `python3 scripts/scout.py stats` to see the tracker's size. Dedup is `python3 scripts/scout.py check <url> --company <name>`: exit code 1 = already tracked.
-2. Open a task list with the five source steps below plus "Log to tracker" and "Report".
+2. Open a task list in this order: the five source steps below, then **"Filter and rank"**, then **"Apply"**, then "Log to tracker" and "Report". Applying is one task at the end, not something interleaved with the sweeping, for the reason in §1.
 3. Load the Claude in Chrome tools in one ToolSearch call; check `tabs_context_mcp`. Without the extension, only step 1 and the API parts of step 5 can run: say so.
 
 ## 1. Source order: mandatory, all five, every run
 
-Alerts, notifications and searches are **separate channels. None is a backup for another.** (Measured: one day's notification page had 24 jobs, 13 of which never appeared in that day's 9 searches.)
+Alerts, notifications and searches are **separate channels. None is a backup for another.** Measured twice, in both directions: one day's notification page had 24 jobs, 13 of which never appeared in that day's 9 searches; and on 22 Sept the 16 searches returned 55 title-matched postings of which **53 had not appeared in that day's notification harvest**, an overlap of 2. Dropping step 3 drops almost the whole day.
+
+**Harvest all five before filling a single form.** Steps 1 to 5 are cheap; forms are not. A run that fills a form in step 1 and triages step 2 in detail will run out of room before step 3, and the step that gets lost is the one carrying most of the day's new postings. Sweep every source, dedup and filter to a candidate list, *then* start applying in the §3 priority order. If the session ends early the report still shows a complete picture of the market, and the queue survives into the next run.
 
 | # | Step | Method in `sources.md` |
 |---|---|---|
@@ -41,6 +43,7 @@ Rules:
 - **Unquoted keywords always.** Quotes kill recall in both search and alerts. Search wide, filter by title and description.
 - Exhaust the chain before saying "nothing found". Don't invent new sources to rescue a thin day; sometimes the market is empty.
 - The report **must end with this table filled in** (step, ran?, jobs seen, candidates, applications). A skipped step must be visible without the user asking.
+- **A skipped source step is a failed run, not a short one.** If room is running out, cut the number of applications, never the number of sources.
 
 ## 2. Filter every candidate (in this order)
 

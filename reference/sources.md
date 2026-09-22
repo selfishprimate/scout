@@ -435,7 +435,9 @@ leider|nicht weiter|malheureusement|bohužel|no continuar|continue with other/i
      if(a&&!window.SEEN.has(a)){window.SEEN.add(a);window.H.push(a);}});return window.H.length;};
    ```
    `[role=option]` returns 0 for several seconds after a folder switch. Wait and re-run rather than concluding the folder is empty.
-2. Scroll with a **real** `computer` scroll and `GRAB()` after each one. Setting `scrollTop` moves the container but does **not** make the virtualized list fetch more rows, so the harvest silently stops growing while the scrollbar appears to move. About 6 new rows per 5 ticks; the server pauses to fetch every ~40 rows.
+2. **The `aria-label` carries 200+ characters of the body, which is usually enough to classify without opening the message.** Measured 22 Sept: of 173 harvested labels, 30 matched the rejection regex and all 30 quoted a real decision sentence ("we won't be moving forward", "decided to move forward with other candidates"). Not one was the "if you are not selected" boilerplate false positive. Read the matched sentence out of the label, and only open a message when the label truncates before the verdict.
+3. Rejection mails usually name the role, which resolves a company with several open applications ("the Staff Product Designer position", "Senior Design Engineer - MetaMask"). Match on the role before moving a row, or the wrong application gets closed.
+4. Scroll with a **real** `computer` scroll and `GRAB()` after each one. Setting `scrollTop` moves the container but does **not** make the virtualized list fetch more rows, so the harvest silently stops growing while the scrollbar appears to move. About 6 new rows per 5 ticks; the server pauses to fetch every ~40 rows.
 2. Open messages cheaply by changing the SPA route (no reload):
 ```js
 window.BASE=location.pathname.split('/id/');
@@ -444,9 +446,9 @@ window.GO=function(id){history.pushState({},'',window.BASE+'/id/'+encodeURICompo
 window.RP=function(){var m=document.querySelector('div[role="main"]');return m?m.innerText.replace(/\s+/g,' '):'';};
 ```
    `GO(id)` → wait 2 s → `RP()`. No screenshots needed.
-3. At most 12 messages per `browser_batch`; 60+ actions time out.
-4. `resize_window` can't exceed the screen ("Bounds must be at least 50% within visible screen space").
-5. Outlook body search is weak (`unfortunately` found 2 of 188); subject and sender search work well.
+5. At most 12 messages per `browser_batch`; 60+ actions time out.
+6. `resize_window` can't exceed the screen ("Bounds must be at least 50% within visible screen space").
+7. Outlook body search is weak (`unfortunately` found 2 of 188); subject and sender search work well.
 
 **How to use the results:** match rejections to tracker rows and set Status = Rejected. Rejections are also the moment to catch past applications missing from the tracker, and duplicate tracker rows. Diagnostic signals: most rejections arrive 1–2 days after applying (some the same day), and none cite location, visa or work permit. That points to CV/portfolio screening at the gate, not targeting. Email tracking is the user's job; the Microsoft 365 connector rejects personal accounts.
 

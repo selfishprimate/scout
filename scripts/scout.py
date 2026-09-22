@@ -416,13 +416,11 @@ def cmd_move(a):
     cmd_index(None, quiet=True)
 
 
-def rows(since=None, status=None, until=None):
+def rows(since=None, status=None):
     out = []
     for r in all_apps():
         d = r.get("applied") or r.get("updated") or ""
         if since and d < since:
-            continue
-        if until and d > until:
             continue
         if status and r.get("status") != status:
             continue

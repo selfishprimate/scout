@@ -196,6 +196,8 @@ Section = vendor name; BambooHR, Revolut and account walls → Hand off; Viterbi
 - **Radios:** `label[for=...]` click, verify. Reset at submit on long forms → real coordinate click on the circle itself.
 - **Dropdowns / comboboxes:** click → type → 3 s → `Return` (Return works in Ashby).
   - **Location** = `input[role=combobox]` (not `input[type=text]`); won't open via ref → coordinate click. Usually searches COUNTRY: "Turkey" → "Türkiye" ("Istanbul" → "No results"); some tenants list "Istanbul, Türkiye" — try the city if the country fails.
+- **The `required` attribute lies.** Ashby renders required radio groups with `required=false` on the inputs, so a pre-submit "are all required fields filled" check passes and the submit then fails on them. Measured 22 Sept on a BeReal form: two expertise groups reported optional, both were required. Trust the asterisk in the label text, not the DOM flag. A `role=combobox` location field has the same problem: it carries no `required` and no value the check can see.
+- **A radio set by `label.click()` shows `checked=true` but does not reach React state.** It fails submit with "Missing entry for required field" and keeps failing however many times you re-click it in JS. A real `computer` coordinate click on the circle fixes it in one go. Re-measure the coordinate after each failed submit: the error banner shifts the page.
 - Required follow-ups to a "No" answer must still be filled ("None, I have not worked in …").
 - **File upload:** `find` → `file_upload` (presigned S3). Page-side CV fetch is CSP-blocked.
 - **Traps:**

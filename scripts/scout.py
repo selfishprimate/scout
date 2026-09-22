@@ -49,6 +49,13 @@ def job_key(url: str) -> str:
             return f"greenhouse:{q[k][0]}"
     if "ats_id" in q:
         return f"ats:{q['ats_id'][0].lower()}"
+    # Indeed keeps the posting id in the query string (?jk=, ?vjk= on a search page).
+    # Without this, every posting on a domain collapses to "<host>/viewjob" and the
+    # first one tracked makes all the others look like duplicates.
+    if "indeed." in host:
+        for k in ("jk", "vjk"):
+            if q.get(k):
+                return f"indeed:{q[k][0].lower()}"
     m = re.search(UUID, path, re.I)
     if m:
         return f"uuid:{m.group(0).lower()}"

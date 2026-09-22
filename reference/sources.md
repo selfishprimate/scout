@@ -255,7 +255,7 @@ UI fallback (browser): `https://freehire.me/jobs?q=<search>&regions=europe,globa
 
 ### Other boards
 
-**Do not use (measured dead or paid):** Remotive (paywall, 0.4% visible) · We Work Remotely (paid) · Arbeitnow API (ignores the search term: "product designer", "postdoc" and "zzzz" return the same 20) · Himalayas (single-agency spam, `?search=` ignored) · Welcome to the Jungle/Otta (no open search) · euremotejobs, uxjobsboard, europeremotely, justremote, landing.jobs (dead) · Adzuna (CAPTCHA wall) · Indeed search (Cloudflare wall, see below) · haystack.cv (country list excludes most candidates) · EWOR GmbH postings (every apply URL 404).
+**Do not use (measured dead or paid):** Remotive (paywall, 0.4% visible) · We Work Remotely (paid) · Arbeitnow API (ignores the search term: "product designer", "postdoc" and "zzzz" return the same 20) · Himalayas (single-agency spam, `?search=` ignored) · Welcome to the Jungle/Otta (no open search) · euremotejobs, uxjobsboard, europeremotely, justremote, landing.jobs (dead) · Adzuna (CAPTCHA wall) · haystack.cv (country list excludes most candidates) · EWOR GmbH postings (every apply URL 404).
 
 
 **designsystems.jobs**
@@ -361,12 +361,15 @@ Lesson, and it is the transferable one: **generic remote boards are US-heavy and
 
 **11th platform, Glassdoor:** home country only, one broad discipline keyword + the home `IN<id>`.
 
-**Indeed as a search source: blocked, although its apply form is not.**
-- `*.indeed.com/jobs?q=...` returns a Cloudflare interstitial ("Additional verification required", Ray ID) to the browser extension. It does not self-resolve on a wait, and getting past it would mean defeating bot detection, which Scout never does.
-- **The block is account-wide across country domains, not per domain.** Measured 22 Sept on `tr.indeed.com` and `ie.indeed.com`: identical wall, different Ray IDs. Trying more domains is not a workaround.
-- Indeed runs one site per country (`tr.`, `ie.`, `de.`, `uk.`, `www.` for the US). A country site indexes that country's postings and its location box resolves inside that country, so one domain is **not** a window onto the others. **This last point is unverified** — the wall blocked the measurement. Test it before relying on it.
-- **Indeed's inventory is already partly reachable**: Glassdoor "Easy Apply" hands off to `smartapply.indeed.com`, and that form is documented in `ats-mechanics.md`. So the apply path works even though the search path does not.
-- If the candidate wants Indeed coverage, the only honest route is manual: they search on their own Indeed and hand over the URLs, which dedup and the normal filters then process. Don't add it to the automated board rotation.
+**Indeed** (measured 22 Sept, one home market)
+
+- **One site per country** (`tr.`, `ie.`, `de.`, `uk.`, `www.` for the US), and **a country site is not a window onto the others.** `tr.indeed.com/jobs?q=product+designer&l=Germany` returned Izmir, Ankara and Istanbul postings: the foreign `l=` was **silently ignored**, with no error and no empty state. `de.indeed.com/jobs?q=product+designer&l=Deutschland` returned German postings normally. So covering N countries means N domains, each its own pass.
+- **The remote filter is country-scoped too.** `&sc=0kf%3Aattr(DSQF7)%3B` on a country site returns remote jobs *open to that country*, not worldwide remote. On the home market: 5 unique results over 14 days, 2 of them on-discipline, 1 already tracked.
+- **Cloudflare wall: transient, and triggered by a malformed query.** `?q=...&l=` with an **empty** location returned "Additional verification required" with a Ray ID on two domains. The same domains served results normally minutes later once `l=` carried a real location. **Always pass a location**, and treat the wall as a retry, not as a dead source. Never work around it: if a real check appears, it is the user's to clear.
+- **Yield is poor for a specialised title.** Broadest discipline keyword, home country, 7-day window: 8 results, **0 new candidates**. One was already tracked; the other seven were title collisions from other industries (game design, furniture, graphic/intern) or another discipline entirely. The same run on LinkedIn and the niche boards had already found everything worth finding.
+- **Scraping:** cards carry `[data-jk]`; walk up with `closest('.cardOutline')` for the title (`h2 a span`), `[data-testid=company-name]` and `[data-testid=text-location]`. **Returning the anchor's `href` trips the `[BLOCKED: Cookie/query string data]` filter** — read `data-jk` and build the URL yourself. The same posting can appear twice with two ids, so dedup on `jk` before counting.
+- **The apply side works and is unaffected:** Glassdoor "Easy Apply" hands off to `smartapply.indeed.com`, documented in `ats-mechanics.md`.
+- **Verdict: not worth an automated slot** on this evidence. The inventory a candidate actually wants arrives through LinkedIn, the niche boards and Glassdoor first. If a candidate wants Indeed anyway, run it as a home-country-only pass with a real `l=`, the broadest discipline keyword, and expect dedup to absorb most of it.
 
 **Other dead or low-value sources.** Reachability notes transfer; the discipline-specific ones are marked.
 - `relocate.me`: the discipline category was empty and the listing stale. Weekly at most.

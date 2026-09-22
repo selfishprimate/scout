@@ -8,6 +8,7 @@ filed by status under applications/<status>/. Standard library only.
   python3 scripts/scout.py move <file|url> <status> [--note TEXT]
   python3 scripts/scout.py list [--status S] [--since YYYY-MM-DD]
   python3 scripts/scout.py index
+  python3 scripts/scout.py normalize [--dry-run]
   python3 scripts/scout.py stats [--since YYYY-MM-DD]
 """
 import argparse, datetime as dt, json, os, re, sys, unicodedata
@@ -56,6 +57,34 @@ def job_key(url: str) -> str:
         return f"{host}:{m.group(1)}"
     path = re.sub(r"/(application|apply|apply/)?$", "", path.rstrip("/"))
     return f"{host}{path}".lower()
+
+
+ATS_HOSTS = [
+    ("ashbyhq.com", "ashby"), ("greenhouse.io", "greenhouse"), ("lever.co", "lever"),
+    ("myworkdayjobs.com", "workday"), ("workable.com", "workable"), ("recruitee.com", "recruitee"),
+    ("personio.", "personio"), ("teamtailor.com", "teamtailor"), ("smartrecruiters.com", "smartrecruiters"),
+    ("bamboohr.com", "bamboohr"), ("pinpointhq.com", "pinpoint"), ("breezy.hr", "breezy"),
+    ("rippling.com", "rippling"), ("icims.com", "icims"), ("taleo.net", "taleo"), ("join.com", "join"),
+    ("homerun.co", "homerun"), ("hire.trakstar.com", "trakstar"), ("jobylon.com", "jobylon"),
+    ("hr-on.com", "hr-on"), ("dayforcehcm.com", "dayforce"), ("successfactors", "successfactors"),
+    ("docs.google.com/forms", "google-forms"), ("forms.gle", "google-forms"),
+    ("linkedin.com", "linkedin"), ("djinni.co", "djinni"),
+]
+# Values that are an application system, not a place the posting was found.
+ATS_NAMES = {v for _, v in ATS_HOSTS} - {"linkedin", "djinni"}
+
+
+def ats_from_url(url: str) -> str:
+    u = (url or "").lower()
+    for host, name in ATS_HOSTS:
+        if host in u:
+            return name
+    return ""
+
+
+def norm(v: str) -> str:
+    """'Company site' -> 'company-site', 'Other board' -> 'other-board'."""
+    return re.sub(r"[^a-z0-9]+", "-", (v or "").strip().lower()).strip("-")
 
 
 def slug(s: str, n: int = 40) -> str:
@@ -166,8 +195,8 @@ def cmd_add(a):
     while path.exists():
         path = APPS / a.status / name.replace(".md", f"-{i}.md")
         i += 1
-    meta = dict(company=a.company, role=a.role, status=a.status, url=a.url, source=a.source,
-                ats=a.ats, apply_type=a.apply_type, location_fit=a.location_fit,
+    meta = dict(company=a.company, role=a.role, status=a.status, url=a.url, source=norm(a.source),
+                ats=norm(a.ats) or ats_from_url(a.url), apply_type=norm(a.apply_type), location_fit=a.location_fit,
                 remote_scope=a.remote_scope, fit=a.fit, posted=a.posted,
                 applied=a.applied or (TODAY if a.status == "applied" else ""),
                 updated=a.date or TODAY, job_key=key)
@@ -232,6 +261,36 @@ def cmd_stats(a):
                      indent=1))
 
 
+def fix_meta(r: dict) -> dict:
+    """Normalise one record: lowercase-hyphen enums, ATS derived from the URL,
+    and an ATS name misfiled as `source` moved to `ats`."""
+    before = {k: r.get(k, "") for k in ("source", "ats", "apply_type", "job_key")}
+    src, ats = norm(r.get("source")), norm(r.get("ats"))
+    if src == "other-board":
+        src = "board"
+    if src in ATS_NAMES:
+        ats = ats or src
+        src = "board"  # the tracker only knew the form system, not where the posting was found
+    r["source"] = src
+    r["ats"] = ats or ats_from_url(r.get("url", ""))
+    r["apply_type"] = norm(r.get("apply_type"))
+    if r.get("url") and not r.get("job_key"):
+        r["job_key"] = job_key(r["url"])
+    return {k: (before[k], r.get(k, "")) for k in before if before[k] != r.get(k, "")}
+
+
+def cmd_normalize(a):
+    changed = 0
+    for r in all_apps():
+        path, body = r.pop("_path"), r.pop("_body")
+        diff = fix_meta(r)
+        if diff:
+            changed += 1
+            if not a.dry_run:
+                write(path, r, body)
+    print(f"{changed} files {'would change' if a.dry_run else 'normalised'}")
+
+
 def cmd_index(a):
     rs = rows()
     c = {s: sum(1 for r in rs if r.get("status") == s) for s in STATUSES}
@@ -271,6 +330,8 @@ def main():
     mv.set_defaults(fn=cmd_move)
     ls = sp.add_parser("list"); ls.add_argument("--status"); ls.add_argument("--since"); ls.set_defaults(fn=cmd_list)
     ix = sp.add_parser("index"); ix.set_defaults(fn=cmd_index)
+    nm = sp.add_parser("normalize", help="lowercase enums, derive ats from url, fix ats-in-source")
+    nm.add_argument("--dry-run", action="store_true"); nm.set_defaults(fn=cmd_normalize)
     st = sp.add_parser("stats"); st.add_argument("--since"); st.set_defaults(fn=cmd_stats)
     a = ap.parse_args()
     a.fn(a)

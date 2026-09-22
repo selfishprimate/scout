@@ -112,6 +112,7 @@ def main():
         while path.exists():
             path = scout.APPS / meta["status"] / name.replace(".md", f"-{i}.md")
             i += 1
+        scout.fix_meta(meta)
         scout.write(path, meta, body)
         made += 1
     print(f"{len(raw)} rows → {made} files" + (" (dry run)" if a.dry_run else ""))

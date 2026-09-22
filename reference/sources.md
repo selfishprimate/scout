@@ -308,6 +308,7 @@ window.MORE=function(){var b=[...document.querySelectorAll('button')]
 
 **Djinni**
 - Ukraine-centred talent market. **Can't apply until the candidate profile is published.** The Apply button clicks but does nothing ("Create your profile to start apply for jobs…"). Publishing happens at `djinni.co/my/wizard/preview/` → "Start search", which carries a **terms-of-use acceptance, so only the user can click it**.
+- **A missing Apply button is usually a language mismatch, not the profile block.** Djinni hides Apply and leaves only Save when the candidate does not meet `Required languages`, with no error message, which reads exactly like the unpublished-profile symptom. Measured 22 Sept with a published, actively searching profile: four design postings showed only Save, and all four asked for **Ukrainian Native**. Read `Required languages` before blaming the profile. A posting outside the candidate's own category behaves the same way.
 - ⛔⛔ **The sector is in the right-column `Domain:` field, not the text.** jito.dev's text said "AI-first coaching platform"; `Domain: Gambling` gave it away. The only textual hint was "skill-based" (gambling jargon). **Read `Domain:` before opening anything.** The same column shows `Employment`, `Startup`, the salary range and `Response activity`.
 - The title salary "to $7000" is a ceiling; the right column showed $2100–7000.
 - `892 views · 244 applications` plus "Response activity: Low" → push down the priority order.

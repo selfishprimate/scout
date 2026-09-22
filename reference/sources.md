@@ -424,8 +424,18 @@ leider|nicht weiter|malheureusement|bohužel|no continuar|continue with other/i
 ```
 - **False-positive trap:** thank-you mails often carry the boilerplate "If you are not selected for this position, keep an eye on…". Read the matched sentence; don't rely on the boolean.
 
+**Which folders to sweep.** Never just the Inbox. Candidates file application mail, and employer mail lands in Junk regularly, so read every folder the profile lists (§11). A sweep of one folder under-counts replies and makes the funnel look worse than it is.
+
 **Fast reading technique in Outlook Web**
-1. The list is virtualized (about 6 rows in the DOM). Scroll with real `computer` scroll or the keyboard `Down` key and collect `[data-convid]` after each scroll. Programmatic `scrollTop` and synthetic `WheelEvent` don't work.
+1. The list is virtualized (6-8 rows in the DOM). **Harvest `[role=option]` and read its `aria-label`** (re-measured 22 Sept; the older `[data-convid]` attribute is gone). The label carries sender, subject, date and a body preview in one string, which is enough to triage before opening anything:
+   ```js
+   window.H=[];window.SEEN=new Set();
+   window.GRAB=function(){document.querySelectorAll('[role=option]').forEach(o=>{
+     const a=(o.getAttribute('aria-label')||o.innerText||'').replace(/\s+/g,' ').trim();
+     if(a&&!window.SEEN.has(a)){window.SEEN.add(a);window.H.push(a);}});return window.H.length;};
+   ```
+   `[role=option]` returns 0 for several seconds after a folder switch. Wait and re-run rather than concluding the folder is empty.
+2. Scroll with a **real** `computer` scroll and `GRAB()` after each one. Setting `scrollTop` moves the container but does **not** make the virtualized list fetch more rows, so the harvest silently stops growing while the scrollbar appears to move. About 6 new rows per 5 ticks; the server pauses to fetch every ~40 rows.
 2. Open messages cheaply by changing the SPA route (no reload):
 ```js
 window.BASE=location.pathname.split('/id/');

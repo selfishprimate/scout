@@ -146,7 +146,10 @@ def write(path: Path, meta: dict, body: str) -> None:
 
 
 def _cell(v: str) -> str:
-    return re.sub(r"\s+", " ", str(v or "")).replace("|", "\\|").strip()
+    """One table cell. Idempotent: an already-escaped pipe is not escaped again,
+    otherwise a value round-tripping through the table grows a backslash each pass."""
+    s = re.sub(r"\s+", " ", str(v or "")).strip()
+    return s.replace("\\|", "|").replace("|", "\\|")
 
 
 def _split_row(line: str):
@@ -166,9 +169,11 @@ def read_skips(path: Path):
             continue
         d = dict(zip(SKIP_COLS, cells))
         url = d["Link"].strip("<>")
+        # `ats` has no column of its own: it is a pure function of the URL, so it is
+        # derived on read. Without it every row would look unnormalised on every pass.
         out.append(dict(updated=d["Date"], company=d["Company"], role=d["Role"], notes=d["Reason"],
                         source=d["Source"], url=url, job_key=d["Key"] or job_key(url), status="skipped",
-                        _path=path, _kind="row", _line=n, _body=""))
+                        ats=ats_from_url(url), _path=path, _kind="row", _line=n, _body=""))
     return out
 
 
@@ -255,6 +260,28 @@ def remove(r) -> None:
 def section(body: str, name: str) -> str:
     m = re.search(rf"## {re.escape(name)}\n(.*?)(?=\n## |\Z)", body, re.S)
     return m.group(1).strip() if m else ""
+
+
+SENT = ("applied", "interviewing", "offer", "rejected", "closed")
+
+
+def keep_as_file(r) -> str:
+    """Why this record must not be collapsed into a skip row, or '' if it may be.
+
+    A skip row holds a date, a company, a role and one line of reason. That is
+    the whole record for a posting that was only ever looked at. For a posting
+    that was applied to, it would throw away the submitted answers, the log and
+    the application date -- so those stay files, with `status: skipped`.
+    """
+    if r["_kind"] != "file":
+        return ""
+    if section(r.get("_body", ""), "Answers submitted"):
+        return "it records submitted answers"
+    if r.get("applied"):
+        return f"it was applied to on {r['applied']}"
+    if r.get("status") in SENT:
+        return f"its status is '{r['status']}'"
+    return ""
 
 
 # ---------- normalisation ----------
@@ -358,11 +385,24 @@ def cmd_move(a):
         path = save(meta, body_for(meta["role"], meta["company"], notes=f"Skipped earlier: {reason}",
                                    log=f"- {r.get('updated')}: skipped\n{note}"))
     elif a.status == "skipped":
-        remove(r)
         meta = {k: v for k, v in r.items() if not k.startswith("_")}
-        meta.update(status="skipped", updated=TODAY,
-                    notes=" ".join(x for x in (a.note, section(r["_body"], "Notes")) if x))
-        path = save(meta)
+        keep = keep_as_file(r)
+        if keep:
+            # Collapsing this to a table row would drop the answers, the reasoning
+            # and the dates, and `--answers` is what makes "no sentence twice"
+            # checkable. A skip that was once a real application stays a file.
+            body = r["_body"]
+            meta.update(status="skipped", updated=TODAY)
+            if "## Log" not in body:
+                body += "\n## Log\n"
+            write(r["_path"], meta, body.rstrip() + "\n" + note + "\n")
+            path = r["_path"]
+            print(f"kept as a file rather than a skip row: {keep}", file=sys.stderr)
+        else:
+            remove(r)
+            meta.update(status="skipped", updated=TODAY,
+                        notes=" ".join(x for x in (a.note, section(r["_body"], "Notes")) if x))
+            path = save(meta)
     else:
         path, body = r["_path"], r["_body"]
         meta = {k: v for k, v in r.items() if not k.startswith("_")}
@@ -400,8 +440,7 @@ def counts(rs):
     c = {s: 0 for s in STATUSES}
     for r in rs:
         c[r.get("status") or "pending"] = c.get(r.get("status") or "pending", 0) + 1
-    sent = sum(c[s] for s in ("applied", "interviewing", "offer", "rejected", "closed"))
-    return c, sent
+    return c, sum(c[s] for s in SENT)
 
 
 def cmd_stats(a):
@@ -412,11 +451,14 @@ def cmd_stats(a):
 
 
 def cmd_normalize(a):
-    changed = 0
+    files = rows_changed = 0
     for d in month_dirs():
         recs = read_skips(d / "skipped.md")
-        if any(fix_meta(r) for r in recs):
-            changed += 1
+        # every record, not `any(...)`: that short-circuits on the first change
+        # and leaves the rest of the table unnormalised.
+        hits = sum(1 for r in recs if fix_meta(r))
+        if hits:
+            rows_changed += hits
             if not a.dry_run:
                 write_skips(d / "skipped.md", recs)
         for f in sorted(d.glob("*.md")):
@@ -426,10 +468,11 @@ def cmd_normalize(a):
             path, body = r.pop("_path"), r.pop("_body")
             r.pop("_kind")
             if fix_meta(r):
-                changed += 1
+                files += 1
                 if not a.dry_run:
                     write(path, r, body)
-    print(f"{changed} files {'would change' if a.dry_run else 'normalised'}")
+    verb = "would change" if a.dry_run else "normalised"
+    print(f"{files} files and {rows_changed} skip rows {verb}")
 
 
 def _link(r, base: Path):

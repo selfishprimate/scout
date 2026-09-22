@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
-"""Scout tracker CLI. Applications are markdown files with a small front matter,
-filed by status under applications/<status>/. Standard library only.
+"""Scout tracker CLI. Standard library only.
+
+Layout: applications/<YYYY-MM>/ holds one markdown file per posting (status in the front
+matter; files never move) plus skipped.md, one table row per posting that was passed over.
+applications/README.md and applications/<YYYY-MM>/README.md are generated views.
 
   python3 scripts/scout.py check <url> [--company NAME]
   printf 'url | company\n4468710729\n' | python3 scripts/scout.py check-many   (bare numbers = LinkedIn IDs)
@@ -10,6 +13,7 @@ filed by status under applications/<status>/. Standard library only.
   python3 scripts/scout.py index
   python3 scripts/scout.py normalize [--dry-run]
   python3 scripts/scout.py stats [--since YYYY-MM-DD]
+  python3 scripts/scout.py migrate [--keep-old]         (v1 status folders -> month folders)
 """
 import argparse, datetime as dt, json, os, re, sys, unicodedata
 from pathlib import Path
@@ -93,7 +97,24 @@ def slug(s: str, n: int = 40) -> str:
     return s[:n].rstrip("-") or "x"
 
 
-# ---------- file io ----------
+# ---------- storage ----------
+# applications/<YYYY-MM>/<date>--<company>--<role>.md   one file per posting that isn't a skip;
+#                                                      status lives in the front matter, files never move
+# applications/<YYYY-MM>/skipped.md                    one table row per skipped posting
+MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
+SKIP_COLS = ["Date", "Company", "Role", "Reason", "Source", "Link", "Key"]
+
+
+def month_of(date: str) -> str:
+    return (date or TODAY)[:7]
+
+
+def month_dirs():
+    if not APPS.is_dir():
+        return []
+    return sorted(d for d in APPS.iterdir() if d.is_dir() and MONTH_RE.match(d.name))
+
+
 def read(path: Path) -> dict:
     text = path.read_text(encoding="utf-8")
     meta, body = {}, text
@@ -107,6 +128,7 @@ def read(path: Path) -> dict:
             body = text[end + 4:].lstrip("\n")
     meta["_path"] = path
     meta["_body"] = body
+    meta["_kind"] = "file"
     return meta
 
 
@@ -123,23 +145,135 @@ def write(path: Path, meta: dict, body: str) -> None:
     path.write_text("\n".join(lines) + "\n\n" + body.rstrip() + "\n", encoding="utf-8")
 
 
+def _cell(v: str) -> str:
+    return re.sub(r"\s+", " ", str(v or "")).replace("|", "\\|").strip()
+
+
+def _split_row(line: str):
+    parts = re.split(r"(?<!\\)\|", line.strip().strip("|"))
+    return [p.strip().replace("\\|", "|") for p in parts]
+
+
+def read_skips(path: Path):
+    out = []
+    if not path.exists():
+        return out
+    for n, line in enumerate(path.read_text(encoding="utf-8").splitlines()):
+        if not line.startswith("| ") or line.startswith("| Date |"):
+            continue
+        cells = _split_row(line)
+        if len(cells) < len(SKIP_COLS):
+            continue
+        d = dict(zip(SKIP_COLS, cells))
+        url = d["Link"].strip("<>")
+        out.append(dict(updated=d["Date"], company=d["Company"], role=d["Role"], notes=d["Reason"],
+                        source=d["Source"], url=url, job_key=d["Key"] or job_key(url), status="skipped",
+                        _path=path, _kind="row", _line=n, _body=""))
+    return out
+
+
+def write_skips(path: Path, recs) -> None:
+    recs = sorted(recs, key=lambda r: (r.get("updated", ""), r.get("company", "").lower()))
+    lines = [f"# Skipped · {path.parent.name}", "",
+             "Postings looked at and not applied to, with the reason. Written by `scripts/scout.py`; "
+             "dedup reads the Key column, so a posting here is never evaluated twice.", "",
+             "| " + " | ".join(SKIP_COLS) + " |", "|" + "---|" * len(SKIP_COLS)]
+    for r in recs:
+        link = f"<{r['url']}>" if r.get("url") else ""
+        lines.append("| " + " | ".join(_cell(x) for x in (
+            r.get("updated", ""), r.get("company", ""), r.get("role", ""), r.get("notes", ""),
+            r.get("source", ""), link, r.get("job_key", ""))) + " |")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def all_apps():
-    for st in STATUSES:
-        d = APPS / st
-        if d.is_dir():
-            for f in sorted(d.glob("*.md")):
-                yield read(f)
+    for d in month_dirs():
+        for f in sorted(d.glob("*.md")):
+            if f.name in ("skipped.md", "README.md"):
+                continue
+            yield read(f)
+        yield from read_skips(d / "skipped.md")
+
+
+def label(r) -> str:
+    p = r["_path"].relative_to(ROOT).as_posix()
+    return p + (f" (row: {r.get('company')})" if r["_kind"] == "row" else "")
 
 
 def find(target: str):
-    p = Path(target)
-    if p.exists():
-        return read(p)
+    p = Path(target).expanduser()
+    if not p.is_absolute():
+        p = (Path.cwd() / p) if (Path.cwd() / p).is_file() else (ROOT / p)
+    if p.is_file() and p.name != "skipped.md":
+        return read(p.resolve())
     key = job_key(target)
     for a in all_apps():
         if a.get("job_key") == key or job_key(a.get("url", "")) == key:
             return a
     return None
+
+
+def new_file_path(date: str, company: str, role: str) -> Path:
+    name = f"{date}--{slug(company, 30)}--{slug(role, 40)}.md"
+    path = APPS / month_of(date) / name
+    i = 2
+    while path.exists():
+        path = path.with_name(name.replace(".md", f"-{i}.md"))
+        i += 1
+    return path
+
+
+def body_for(role, company, why="", notes="", answers="", log=""):
+    return (f"# {role} · {company}\n\n## Why it fits\n\n{why}\n\n## Notes\n\n{notes}\n\n"
+            f"## Answers submitted\n\n{answers}\n\n## Log\n\n{log}\n")
+
+
+def save(meta: dict, body: str = "", log: str = ""):
+    """Store a new record in the right place for its status. Returns the path written."""
+    fix_meta(meta)
+    date = meta.get("applied") or meta.get("updated") or TODAY
+    if meta["status"] == "skipped":
+        path = APPS / month_of(date) / "skipped.md"
+        recs = read_skips(path)
+        recs.append(dict(meta, updated=meta.get("updated") or date))
+        write_skips(path, recs)
+        return path
+    path = new_file_path(date, meta["company"], meta["role"])
+    write(path, meta, body or body_for(meta["role"], meta["company"], log=log))
+    return path
+
+
+def remove(r) -> None:
+    if r["_kind"] == "row":
+        keep = [x for x in read_skips(r["_path"]) if x["_line"] != r["_line"]]
+        write_skips(r["_path"], keep)
+    else:
+        r["_path"].unlink()
+
+
+def section(body: str, name: str) -> str:
+    m = re.search(rf"## {re.escape(name)}\n(.*?)(?=\n## |\Z)", body, re.S)
+    return m.group(1).strip() if m else ""
+
+
+# ---------- normalisation ----------
+def fix_meta(r: dict) -> dict:
+    """Normalise one record: lowercase-hyphen enums, ATS derived from the URL,
+    and an ATS name misfiled as `source` moved to `ats`."""
+    before = {k: r.get(k, "") for k in ("source", "ats", "apply_type", "job_key")}
+    src, ats = norm(r.get("source")), norm(r.get("ats"))
+    if src == "other-board":
+        src = "board"
+    if src in ATS_NAMES:
+        ats = ats or src
+        src = "board"  # the tracker only knew the form system, not where the posting was found
+    r["source"] = src
+    r["ats"] = ats or ats_from_url(r.get("url", ""))
+    r["apply_type"] = norm(r.get("apply_type"))
+    if r.get("url") and not r.get("job_key"):
+        r["job_key"] = job_key(r["url"])
+    return {k: (before[k], r.get(k, "")) for k in before if before[k] != r.get(k, "")}
 
 
 # ---------- commands ----------
@@ -154,7 +288,7 @@ def cmd_check(a):
     if same:
         print("DUPLICATE: this posting is already tracked")
         for r in same:
-            print(f"  {r.get('status')} | {r.get('company')} | {r.get('role')} | {r['_path'].relative_to(ROOT)}")
+            print(f"  {r.get('status')} | {r.get('company')} | {r.get('role')} | {label(r)}")
         sys.exit(1)
     print(f"NEW  key={key}")
     for r in company:
@@ -174,7 +308,7 @@ def cmd_check_many(a):
             url = f"https://www.linkedin.com/jobs/view/{url}/"
         r = keys.get(job_key(url))
         if r:
-            print(f"DUP    {line} -> {r.get('status')} {r['_path'].name}")
+            print(f"DUP    {line} -> {r.get('status')} {label(r)}")
             continue
         same = [x for x in apps if co and slug(co) in slug(x.get("company", ""), 80)]
         print(("SAMECO " if same else "NEW    ") + line + (f" -> {len(same)} earlier: " + ", ".join(f"{x.get('status')}:{x.get('role')}" for x in same[:3]) if same else ""))
@@ -187,26 +321,21 @@ def cmd_add(a):
     if key and not a.force:
         for r in all_apps():
             if r.get("job_key") == key:
-                sys.exit(f"DUPLICATE: {r['_path'].relative_to(ROOT)} (use --force to add anyway)")
-    date = a.applied or a.date or TODAY
-    name = f"{date}--{slug(a.company, 30)}--{slug(a.role, 40)}.md"
-    path = APPS / a.status / name
-    i = 2
-    while path.exists():
-        path = APPS / a.status / name.replace(".md", f"-{i}.md")
-        i += 1
-    meta = dict(company=a.company, role=a.role, status=a.status, url=a.url, source=norm(a.source),
-                ats=norm(a.ats) or ats_from_url(a.url), apply_type=norm(a.apply_type), location_fit=a.location_fit,
-                remote_scope=a.remote_scope, fit=a.fit, posted=a.posted,
-                applied=a.applied or (TODAY if a.status == "applied" else ""),
-                updated=a.date or TODAY, job_key=key)
-    body = f"# {a.role} · {a.company}\n\n"
-    body += "## Why it fits\n\n" + (a.why or "") + "\n\n"
-    body += "## Notes\n\n" + (a.notes or "") + "\n\n"
-    body += "## Answers submitted\n\n" + (a.answers or "") + "\n\n"
-    body += "## Log\n\n" + f"- {a.date or TODAY}: {a.status}" + (f". {a.log}" if a.log else "") + "\n"
-    write(path, meta, body)
+                sys.exit(f"DUPLICATE: {label(r)} (use --force to add anyway)")
+    today = a.date or TODAY
+    meta = dict(company=a.company, role=a.role, status=a.status, url=a.url, source=a.source, ats=a.ats,
+                apply_type=a.apply_type, location_fit=a.location_fit, remote_scope=a.remote_scope, fit=a.fit,
+                posted=a.posted, applied=a.applied or (today if a.status == "applied" else ""),
+                updated=today, job_key=key)
+    if a.status == "skipped":
+        meta["notes"] = a.notes or a.why
+        path = save(meta)
+    else:
+        log = f"- {today}: {a.status}" + (f". {a.log}" if a.log else "")
+        path = save(meta, body_for(a.role, a.company, a.why, a.notes, a.answers, log))
     print(path.relative_to(ROOT))
+    if not a.no_index:
+        cmd_index(None, quiet=True)
 
 
 def cmd_move(a):
@@ -215,28 +344,45 @@ def cmd_move(a):
     r = find(a.target)
     if not r:
         sys.exit("not found")
-    old = r["_path"]
-    body = r.pop("_body")
-    r.pop("_path")
-    r["status"] = a.status
-    r["updated"] = TODAY
-    if a.status == "applied" and not r.get("applied"):
-        r["applied"] = TODAY
-    if "## Log" not in body:
-        body += "\n## Log\n"
-    body = body.rstrip() + f"\n- {TODAY}: {a.status}" + (f". {a.note}" if a.note else "") + "\n"
-    new = APPS / a.status / old.name
-    write(new, r, body)
-    if new != old:
-        old.unlink()
-    print(new.relative_to(ROOT))
+    note = f"- {TODAY}: {a.status}" + (f". {a.note}" if a.note else "")
+    if r["_kind"] == "row" and a.status == "skipped":
+        print("already skipped: " + label(r)); return
+    if r["_kind"] == "row":
+        # a skip turned into something else: it gets its own file
+        remove(r)
+        meta = {k: v for k, v in r.items() if not k.startswith("_")}
+        reason = meta.pop("notes", "")
+        meta.update(status=a.status, updated=TODAY)
+        if a.status == "applied":
+            meta["applied"] = TODAY
+        path = save(meta, body_for(meta["role"], meta["company"], notes=f"Skipped earlier: {reason}",
+                                   log=f"- {r.get('updated')}: skipped\n{note}"))
+    elif a.status == "skipped":
+        remove(r)
+        meta = {k: v for k, v in r.items() if not k.startswith("_")}
+        meta.update(status="skipped", updated=TODAY,
+                    notes=" ".join(x for x in (a.note, section(r["_body"], "Notes")) if x))
+        path = save(meta)
+    else:
+        path, body = r["_path"], r["_body"]
+        meta = {k: v for k, v in r.items() if not k.startswith("_")}
+        meta.update(status=a.status, updated=TODAY)
+        if a.status == "applied" and not meta.get("applied"):
+            meta["applied"] = TODAY
+        if "## Log" not in body:
+            body += "\n## Log\n"
+        write(path, meta, body.rstrip() + "\n" + note + "\n")
+    print(path.relative_to(ROOT))
+    cmd_index(None, quiet=True)
 
 
-def rows(since=None, status=None):
+def rows(since=None, status=None, until=None):
     out = []
     for r in all_apps():
         d = r.get("applied") or r.get("updated") or ""
         if since and d < since:
+            continue
+        if until and d > until:
             continue
         if status and r.get("status") != status:
             continue
@@ -250,65 +396,123 @@ def cmd_list(a):
         print(f"{r.get('applied') or r.get('updated')} | {r.get('status'):<12} | {r.get('company')} | {r.get('role')} | {r.get('url','')}")
 
 
-def cmd_stats(a):
-    rs = rows(a.since)
+def counts(rs):
     c = {s: 0 for s in STATUSES}
     for r in rs:
-        c[r.get("status", "pending")] = c.get(r.get("status", "pending"), 0) + 1
+        c[r.get("status") or "pending"] = c.get(r.get("status") or "pending", 0) + 1
     sent = sum(c[s] for s in ("applied", "interviewing", "offer", "rejected", "closed"))
-    print(json.dumps({"total": len(rs), "sent": sent, **c,
+    return c, sent
+
+
+def cmd_stats(a):
+    c, sent = counts(rows(a.since))
+    print(json.dumps({"total": sum(c.values()), "sent": sent, **c,
                       "response_rate": round((c["interviewing"] + c["offer"] + c["rejected"]) / sent, 3) if sent else None},
                      indent=1))
 
 
-def fix_meta(r: dict) -> dict:
-    """Normalise one record: lowercase-hyphen enums, ATS derived from the URL,
-    and an ATS name misfiled as `source` moved to `ats`."""
-    before = {k: r.get(k, "") for k in ("source", "ats", "apply_type", "job_key")}
-    src, ats = norm(r.get("source")), norm(r.get("ats"))
-    if src == "other-board":
-        src = "board"
-    if src in ATS_NAMES:
-        ats = ats or src
-        src = "board"  # the tracker only knew the form system, not where the posting was found
-    r["source"] = src
-    r["ats"] = ats or ats_from_url(r.get("url", ""))
-    r["apply_type"] = norm(r.get("apply_type"))
-    if r.get("url") and not r.get("job_key"):
-        r["job_key"] = job_key(r["url"])
-    return {k: (before[k], r.get(k, "")) for k in before if before[k] != r.get(k, "")}
-
-
 def cmd_normalize(a):
     changed = 0
-    for r in all_apps():
-        path, body = r.pop("_path"), r.pop("_body")
-        diff = fix_meta(r)
-        if diff:
+    for d in month_dirs():
+        recs = read_skips(d / "skipped.md")
+        if any(fix_meta(r) for r in recs):
             changed += 1
             if not a.dry_run:
-                write(path, r, body)
+                write_skips(d / "skipped.md", recs)
+        for f in sorted(d.glob("*.md")):
+            if f.name in ("skipped.md", "README.md"):
+                continue
+            r = read(f)
+            path, body = r.pop("_path"), r.pop("_body")
+            r.pop("_kind")
+            if fix_meta(r):
+                changed += 1
+                if not a.dry_run:
+                    write(path, r, body)
     print(f"{changed} files {'would change' if a.dry_run else 'normalised'}")
 
 
-def cmd_index(a):
+def _link(r, base: Path):
+    if r["_kind"] == "row":
+        return r.get("role", "")
+    return f"[{r.get('role','')}]({r['_path'].relative_to(base).as_posix()})"
+
+
+def _table(rs, base, cols=("Date", "Company", "Role", "Status", "Fit", "Posting")):
+    out = ["| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)]
+    for r in rs:
+        vals = {"Date": r.get("applied") or r.get("updated", ""), "Company": _cell(r.get("company")),
+                "Role": _link(r, base), "Status": r.get("status", ""), "Fit": r.get("location_fit", ""),
+                "Posting": f"[link]({r['url']})" if r.get("url") else "",
+                "Next step": _cell(section(r.get("_body", ""), "Notes"))[:160]}
+        out.append("| " + " | ".join(vals[c] for c in cols) + " |")
+    return out
+
+
+def cmd_index(a, quiet=False):
     rs = rows()
-    c = {s: sum(1 for r in rs if r.get("status") == s) for s in STATUSES}
-    lines = ["# Applications", "", f"Generated by `scripts/scout.py index` on {TODAY}. Don't edit by hand.", "",
-             " · ".join(f"**{s}** {c[s]}" for s in STATUSES), ""]
-    for s in STATUSES:
-        sub = [r for r in rs if r.get("status") == s]
-        if not sub:
-            continue
-        lines += [f"## {s.capitalize()} ({len(sub)})", "", "| Date | Company | Role | Fit | Link |", "|---|---|---|---|---|"]
-        for r in sub:
-            rel = r["_path"].relative_to(APPS).as_posix()
-            lines.append(f"| {r.get('applied') or r.get('updated','')} | {r.get('company','')} | "
-                         f"[{r.get('role','')}]({rel}) | {r.get('location_fit','')} | "
-                         f"{'[posting](' + r['url'] + ')' if r.get('url') else ''} |")
-        lines.append("")
+    since30 = (dt.date.today() - dt.timedelta(days=30)).isoformat()
+    lines = ["# Applications", "", f"Generated by `scripts/scout.py` on {TODAY}. Don't edit by hand.", ""]
+    pend = [r for r in rs if r.get("status") == "pending"]
+    live = [r for r in rs if r.get("status") in ("interviewing", "offer")]
+    recent = [r for r in rs if r.get("status") in ("applied", "rejected", "closed") and (r.get("applied") or r.get("updated", "")) >= since30]
+    lines += [f"## Needs you ({len(pend)})", "", "Forms waiting for a CAPTCHA, an account, a decision or an answer only you have.", ""]
+    lines += _table(pend, APPS, ("Date", "Company", "Role", "Next step")) if pend else ["Nothing."]
+    lines += ["", f"## In progress ({len(live)})", ""]
+    lines += _table(live, APPS) if live else ["Nothing yet."]
+    lines += ["", f"## Sent in the last 30 days ({len(recent)})", ""]
+    lines += _table(recent, APPS) if recent else ["Nothing."]
+    lines += ["", "## By month", "", "| Month | Sent | Replies | Interviewing / offer | Pending | Skipped |", "|---|---|---|---|---|---|"]
+    for d in reversed(month_dirs()):
+        mr = [r for r in rs if r["_path"].parent == d]
+        c, sent = counts(mr)
+        lines.append(f"| [{d.name}]({d.name}/README.md) | {sent} | {c['rejected'] + c['interviewing'] + c['offer']} | "
+                     f"{c['interviewing'] + c['offer']} | {c['pending']} | [{c['skipped']}]({d.name}/skipped.md) |")
+        # per-month page
+        ml = [f"# {d.name}", "", f"Generated by `scripts/scout.py` on {TODAY}.", "",
+              " · ".join(f"**{s}** {c[s]}" for s in STATUSES if c[s]), ""]
+        files = [r for r in mr if r["_kind"] == "file"]
+        ml += _table(files, d) if files else ["No applications this month."]
+        ml += ["", f"Skipped postings ({c['skipped']}): [skipped.md](skipped.md)", ""]
+        (d / "README.md").write_text("\n".join(ml), encoding="utf-8")
+    c, sent = counts(rs)
+    lines += ["", f"All time: **{sent} sent** · " + " · ".join(f"{s} {c[s]}" for s in STATUSES if c[s]), ""]
+    APPS.mkdir(exist_ok=True)
     (APPS / "README.md").write_text("\n".join(lines), encoding="utf-8")
-    print(f"applications/README.md ({len(rs)} rows)")
+    if not quiet:
+        print(f"applications/README.md ({len(rs)} records, {len(month_dirs())} months)")
+
+
+def cmd_migrate(a):
+    """Move a v1 tracker (applications/<status>/*.md) to the month layout."""
+    old = [APPS / s for s in STATUSES if (APPS / s).is_dir()]
+    if not old:
+        sys.exit("nothing to migrate: no applications/<status>/ folders")
+    n_files = n_rows = 0
+    for d in old:
+        for f in sorted(d.glob("*.md")):
+            r = read(f)
+            body = r.pop("_body"); r.pop("_path"); r.pop("_kind")
+            r["status"] = r.get("status") or d.name
+            if r["status"] == "skipped":
+                r["notes"] = section(body, "Notes") or section(body, "Why it fits")
+                save(r)
+                n_rows += 1
+            else:
+                date = r.get("applied") or r.get("updated") or f.name[:10]
+                path = APPS / month_of(date) / f.name
+                fix_meta(r)
+                write(path, r, body)
+                n_files += 1
+            if not a.keep_old:
+                f.unlink()
+        if not a.keep_old:
+            try:
+                d.rmdir()
+            except OSError:
+                pass
+    cmd_index(None)
+    print(f"migrated {n_files} files and {n_rows} skip rows" + (" (old folders kept)" if a.keep_old else ""))
 
 
 def main():
@@ -325,6 +529,7 @@ def main():
               "date", "why", "notes", "answers", "log"):
         ad.add_argument("--" + f, default="")
     ad.add_argument("--force", action="store_true")
+    ad.add_argument("--no-index", action="store_true", help="skip regenerating the README index (bulk adds)")
     ad.set_defaults(fn=cmd_add)
     mv = sp.add_parser("move"); mv.add_argument("target"); mv.add_argument("status"); mv.add_argument("--note", default="")
     mv.set_defaults(fn=cmd_move)
@@ -333,6 +538,8 @@ def main():
     nm = sp.add_parser("normalize", help="lowercase enums, derive ats from url, fix ats-in-source")
     nm.add_argument("--dry-run", action="store_true"); nm.set_defaults(fn=cmd_normalize)
     st = sp.add_parser("stats"); st.add_argument("--since"); st.set_defaults(fn=cmd_stats)
+    mg = sp.add_parser("migrate", help="convert applications/<status>/ folders to applications/<YYYY-MM>/")
+    mg.add_argument("--keep-old", action="store_true"); mg.set_defaults(fn=cmd_migrate)
     a = ap.parse_args()
     a.fn(a)
 

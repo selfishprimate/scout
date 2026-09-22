@@ -198,7 +198,7 @@ Machine-readable queries live in `profile/search.json`. Human notes:
 
 ## 11. Tracker
 
-Applications are markdown files in `applications/<status>/`, written only through `scripts/scout.py`. Statuses: pending · applied · interviewing · offer · rejected · closed · skipped. Location fit codes: A · B · C (§6).
+Applications are markdown files in `applications/<YYYY-MM>/` (status in the front matter), skips are rows in each month's `skipped.md`; both written only through `scripts/scout.py`. Statuses: pending · applied · interviewing · offer · rejected · closed · skipped. Location fit codes: A · B · C (§6).
 
 ---
 

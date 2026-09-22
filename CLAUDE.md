@@ -12,9 +12,9 @@ Scout is a job-search agent that runs inside Claude Code: it searches job source
 | `templates/` | Profile and search-config templates that `/scout-init` fills | tracked |
 | `scripts/scout.py` | Tracker CLI: check, check-many, add, move, list, index, stats | tracked |
 | `scripts/freehire_sweep.py` | Step 1 API sweep with the profile's queries | tracked |
-| `scripts/import_notion_csv.py` | One-off import of an existing tracker (Notion/Sheets CSV) | tracked |
+| `scripts/import_csv.py` | One-off import of an existing tracker (Notion/Sheets CSV) | tracked |
 | `profile/` | The candidate: `profile.md`, `search.json`, `documents/` (CVs) | **ignored** |
-| `applications/<status>/` | One markdown file per application or skip | **ignored** |
+| `applications/<YYYY-MM>/` | One markdown file per application or hand-off, plus `skipped.md` (one row per skipped posting). `applications/README.md` is the generated overview | **ignored** |
 | `runs/` | One report per run, plus sweep output | **ignored** |
 
 ## Rules that hold in every session

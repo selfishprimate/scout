@@ -5,7 +5,7 @@ description: Update the application tracker. Record replies (rejection, screenin
 
 # /scout-log — keep the tracker true
 
-All changes go through `scripts/scout.py`; never edit front matter by hand.
+All changes go through `scripts/scout.py`; never edit front matter or `skipped.md` by hand. `move` changes the status inside the file (files never change folder) and appends a log line; moving a skip to any other status turns its table row into a file, and moving a file to `skipped` turns it into a row.
 
 ## A. The user tells you something
 

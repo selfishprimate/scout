@@ -1,0 +1,29 @@
+{
+  "_comment": "Machine-readable search config. /scout-init writes profile/search.json from this template. Human rules live in profile/profile.md.",
+  "languages": ["en"],
+  "blocked_domains": ["gambling", "adult"],
+  "title_keep": "product design|\\bux\\b|\\bui\\b|ui/|design system|design engineer|design technolog|\\bdesigner\\b",
+  "title_drop": "junior|intern|graduate|werkstudent|praktik|apprentice|head of|director|manager|graphic|motion|illustrat|industrial|mechanical|electrical|hardware|fpga|asic|pcb|analog|silicon|verification|civil|structural|interior|fashion|textile|furniture|packaging|marketing designer|brand designer|presentation|instructional|game artist|3d artist|video|cnc|hvac|piping|circuit|chip|landscape",
+  "freehire": {
+    "queries": ["product designer", "ux designer", "ui designer"],
+    "categories": ["design", "frontend", "engineering_design", "product"],
+    "regions": ["global", "eu", "emea", "europe"],
+    "home_country": "",
+    "window_days": 3
+  },
+  "linkedin": {
+    "home_geo_id": "",
+    "window": "r259200",
+    "searches": [
+      {"keywords": "Product Designer", "geo_id": "92000000", "remote": true},
+      {"keywords": "Senior Product Designer", "geo_id": "91000002", "remote": false},
+      {"keywords": "UX Designer", "geo_id": "91000002", "remote": true}
+    ]
+  },
+  "boards": [
+    {"name": "jobs.intodesignsystems.com", "cadence": "daily"},
+    {"name": "designsystems.jobs", "cadence": "2-3x/week"},
+    {"name": "Working Nomads", "cadence": "2x/week"},
+    {"name": "Glassdoor (home country, keyword designer)", "cadence": "weekly"}
+  ]
+}

@@ -1,0 +1,14 @@
+# Your data. Never committed.
+profile/*
+!profile/.gitkeep
+applications/*
+!applications/.gitkeep
+runs/*
+!runs/.gitkeep
+
+# OS / editor
+.DS_Store
+__pycache__/
+*.pyc
+.claude/settings.local.json
+_to_delete/

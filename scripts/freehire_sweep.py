@@ -1,0 +1,114 @@
+#!/usr/bin/env python3
+"""Step 1 of a run: sweep the freehire.me API with the queries in profile/search.json,
+drop closed / sensitive / wrong-language / stale / off-title / already-tracked postings,
+and print the candidates. Standard library + curl.
+
+  python3 scripts/freehire_sweep.py              # sweep, write runs/<today>/freehire.json
+  python3 scripts/freehire_sweep.py --detail N   # grep eligibility lines for candidate N (or all)
+"""
+import argparse, concurrent.futures as cf, datetime as dt, html, json, re, subprocess, sys, urllib.parse
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import scout  # noqa: E402
+
+ROOT = scout.ROOT
+CFG = json.loads((ROOT / "profile" / "search.json").read_text(encoding="utf-8"))
+FH = CFG["freehire"]
+UA = "Mozilla/5.0 scout"
+OUT = ROOT / "runs" / scout.TODAY
+ELIG = re.compile(r"[^.\n]*(based in|authori[sz]ed to work|eligible to work|residen|time ?zone|GMT|CET|UTC|"
+                  r"countr|relocat|sponsor|visa|hybrid|office|remote|years)[^.\n]*", re.I)
+
+
+def curl(url):
+    r = subprocess.run(["curl", "-sS", "-m", "40", "-A", UA, url], capture_output=True, text=True)
+    try:
+        return json.loads(r.stdout)
+    except Exception:
+        return {}
+
+
+def search(**kw):
+    kw.setdefault("limit", 100)  # default ordering = relevance. Never sort by date (floods off-topic titles).
+    return curl("https://freehire.me/api/v1/jobs/search?" + urllib.parse.urlencode(kw)).get("data", [])
+
+
+def sweep():
+    jobs = [dict(q=q, category=c, work_mode="remote", regions=r)
+            for q in FH["queries"] for c in FH.get("categories", ["design", "frontend", "engineering_design", "product"])
+            for r in FH["regions"]]
+    if FH.get("home_country"):
+        jobs += [dict(q=q, countries=FH["home_country"]) for q in FH["queries"]]
+    rows = {}
+    with cf.ThreadPoolExecutor(8) as ex:
+        for res in ex.map(lambda k: search(**k), jobs):
+            for j in res:
+                rows[j.get("public_slug") or j.get("slug")] = j
+    keep = re.compile(CFG["title_keep"], re.I)
+    drop = re.compile(CFG["title_drop"], re.I)
+    blocked_domains = set(CFG.get("blocked_domains", ["gambling"]))
+    langs = set(CFG.get("languages", ["en"]))
+    window = int(FH.get("window_days", 3))
+    tracked = {r.get("job_key") for r in scout.all_apps()}
+    now = dt.datetime.now(dt.timezone.utc)
+    out, stats = [], dict(raw=len(rows), closed=0, sector=0, language=0, title=0, stale=0, tracked=0)
+    for s, j in rows.items():
+        e = j.get("enrichment") or {}
+        if j.get("closed_at"):
+            stats["closed"] += 1; continue
+        if blocked_domains & set(e.get("domains") or []):
+            stats["sector"] += 1; continue
+        if e.get("posting_language") and e["posting_language"] not in langs:
+            stats["language"] += 1; continue
+        t = j.get("title", "")
+        if not keep.search(t) or drop.search(t):
+            stats["title"] += 1; continue
+        try:
+            age = (now - dt.datetime.fromisoformat((j.get("posted_at") or j.get("created_at")).replace("Z", "+00:00"))).days
+        except Exception:
+            age = 99
+        if age > window:
+            stats["stale"] += 1; continue
+        url = re.sub(r"[?&]utm_[^&]*", "", j.get("url") or "")
+        if "?" not in url:
+            url = url.replace("&", "?", 1)
+        if scout.job_key(url) in tracked:
+            stats["tracked"] += 1; continue
+        co = j.get("company")
+        out.append(dict(slug=s, title=t, company=co.get("name") if isinstance(co, dict) else co,
+                        location=j.get("location"), countries=j.get("countries"), regions=j.get("regions"),
+                        work_mode=j.get("work_mode"), age=age, url=url, domains=e.get("domains"),
+                        reality=(j.get("reality") or {}).get("class")))
+    out.sort(key=lambda x: x["age"])
+    OUT.mkdir(parents=True, exist_ok=True)
+    (OUT / "freehire.json").write_text(json.dumps(out, indent=1, ensure_ascii=False), encoding="utf-8")
+    print(json.dumps(stats), f"→ {len(out)} candidates  (runs/{scout.TODAY}/freehire.json)")
+    for i, o in enumerate(out):
+        print(f"{i:>2} | {o['age']}d | {o['company']} | {o['title']} | {o['location']} | {o['url'][:80]}")
+
+
+def detail(which):
+    cand = json.loads((OUT / "freehire.json").read_text(encoding="utf-8"))
+    idx = range(len(cand)) if which == "all" else [int(x) for x in which.split(",")]
+    for i in idx:
+        o = cand[i]
+        j = curl("https://freehire.me/api/v1/jobs/" + o["slug"])
+        j = j.get("data", j)
+        d = html.unescape(re.sub(r"<[^>]+>", " ", j.get("description") or ""))
+        print(f"===== {i} | {o['company']} | {o['title']} | {j.get('countries')} {j.get('regions')}\n{o['url']}")
+        seen = []
+        for m in ELIG.finditer(d):
+            s = re.sub(r"\s+", " ", m.group(0)).strip()[:220]
+            if s not in seen:
+                seen.append(s)
+                print("  -", s)
+            if len(seen) >= 12:
+                break
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--detail", help="candidate index list (0,3,5) or 'all'")
+    a = ap.parse_args()
+    detail(a.detail) if a.detail else sweep()

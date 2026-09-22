@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 scripts/scout.py:*)",
+      "Bash(python3 scripts/freehire_sweep.py:*)",
+      "Bash(python3 scripts/import_notion_csv.py:*)",
+      "Bash(curl -sS:*)",
+      "Read(./profile/**)",
+      "Read(./reference/**)",
+      "Read(./applications/**)",
+      "Edit(./profile/**)",
+      "Edit(./reference/**)",
+      "Edit(./runs/**)"
+    ],
+    "deny": [
+      "Edit(./.env*)"
+    ]
+  }
+}

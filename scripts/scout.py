@@ -67,6 +67,12 @@ def job_key(url: str) -> str:
     if m:
         return f"{host}:{m.group(1)}"
     path = re.sub(r"/(application|apply|apply/)?$", "", path.rstrip("/"))
+    # A URL with no path would key on the host alone, which makes every posting on
+    # that site one record. Fall back to the fragment, then to the query.
+    if not path:
+        tail = p.fragment or p.query
+        if tail:
+            return f"{host}#{tail}".lower()
     return f"{host}{path}".lower()
 
 

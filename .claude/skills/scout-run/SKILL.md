@@ -45,11 +45,11 @@ Rules:
 ## 2. Filter every candidate (in this order)
 
 1. **Dedup by Job URL / job ID**, right before opening each form, not only at run start. Same company + different role is fine; same URL = stop. Repeat for every source added mid-run. LinkedIn's `applyingInfo.applied` is unreliable (`undefined`); `scripts/scout.py check` is the truth.
-2. **Blacklist and sensitive sectors** (profile §7). Read the sector from the **company's own pitch**, not the title ("European leader in sports betting" behind a plain "Senior Product Designer"). freehire `enrichment.domains`, Djinni `Domain:`. Sensitive sector → skip silently, log reason, never ask. Sectors marked "ask" → ask.
+2. **Blacklist and sensitive sectors** (profile §7). Read the sector from the **company's own pitch**, not the title (a plain, on-target job title over a company that describes itself as a "European leader in sports betting"). freehire `enrichment.domains`, Djinni `Domain:`. Sensitive sector → skip silently, log reason, never ask. Sectors marked "ask" → ask.
 3. **Role fit** (profile §5).
    - "Lead": read the **verbs**. "direct reports / line-manage / guide the team / accountable for their performance" = management. "own work, pairing, critique, prototyping in code, without disciplinary leadership" = IC.
-   - Greenhouse portfolio questions reveal scope ("show how you've led and developed designers" = management). BambooHR "Minimum Experience" field is the employer's own level tag.
-   - Title false positives: "Design Engineer" is mostly hardware (FPGA, ASIC, PCB, mechanical); "Product Designer" can be textile/furniture/industrial; "Solutions Engineer" ≠ Forward Deployed Engineer. Verify from the description.
+   - The form's own free-text questions reveal scope better than the posting does ("show how you've led and developed the people on your team" = management). BambooHR's "Minimum Experience" field is the employer's own level tag.
+   - **Title collisions.** Most job titles are shared with an unrelated industry, and the other industry usually posts more volume. Build the candidate's collision list into `title_drop` in `profile/search.json` on the first run and extend it as they appear. Never judge from the title — verify from the description.
    - Under-level signals: "Middle", "II", "guided by more senior peers", internships.
    - One missing core requirement is **not** a skip reason: apply, answer honestly, flag low odds. Four missing = noise. A mandatory radio with **no truthful option** = don't submit.
 4. **Language.** Any required language outside the profile's list = skip, even for fully remote roles. A description written entirely in the local language counts as a requirement. `m/w/d`, `H/F` alone don't. An explicit sentence ("English required, German a plus") overrides. freehire: `enrichment.posting_language`.
@@ -129,7 +129,7 @@ Use the profile's **voice** section and **fact bank**. Engine rules that always 
 
 ## 7. Close the run (never skipped)
 
-1. **Tracker:** one file per application **and per skip**, through the CLI only (never hand-write the front matter):
+1. **Tracker:** one record per application **and per skip**, through the CLI only (never hand-write the front matter or the skipped table). Applications and hand-offs become files in `applications/<YYYY-MM>/`; skips become one row in that month's `skipped.md` (put the reason in `--notes`, one line).
    ```
    python3 scripts/scout.py add --company "X" --role "Y" --status applied|skipped|pending \
      --url "<posting url>" --source freehire|linkedin|<board> --ats ashby --apply-type company-site|easy-apply|email \
@@ -137,7 +137,7 @@ Use the profile's **voice** section and **fact bank**. Engine rules that always 
      --why "one line" --notes "reason, confirmation number, salary given, hand-off details" \
      --answers "free-text answers exactly as submitted"
    ```
-   `--url` is always filled; it is what dedup keys on. `--answers` keeps the "no sentence twice" rule checkable: grep `applications/` before writing a new answer. Needs-you items are `--status pending` with the exact action in `--notes`. Then `python3 scripts/scout.py index`.
+   `--url` is always filled; it is what dedup keys on. `--answers` keeps the "no sentence twice" rule checkable: grep `applications/*/` before writing a new answer. Needs-you items are `--status pending` with the exact action in `--notes`. `add` and `move` regenerate `applications/README.md` themselves; pass `--no-index` in a bulk loop and run `index` once at the end.
 2. **Profile/reference upkeep:** new ATS trap → `reference/ats-mechanics.md`; new source behaviour → `reference/sources.md`; new rule, blacklist entry, standard answer or fact → `profile/profile.md`. Edit in place; replace outdated text instead of appending history.
 3. **Report** to the user, short, and save the same text as `runs/<YYYY-MM-DD>.md` (append `-2`, `-3` for extra runs that day):
    - The 5-step source table.

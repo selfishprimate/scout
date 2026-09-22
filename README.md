@@ -2,7 +2,7 @@
 
 A job-search agent for Claude Code. It searches job sources every day, filters postings against **your** rules (location, visa, salary, sectors, seniority, language), fills application forms in your own Chrome, and keeps every application and skip as a markdown file you can read, grep and diff.
 
-It was built over a month of daily use by one designer and then emptied of personal data, so it's opinionated where the lessons were expensive: dedup before every form, never guess an answer, never invent an anecdote, never touch a CAPTCHA or a password.
+It was built over a month of daily use by one job seeker and then emptied of personal data, so it's opinionated where the lessons were expensive: dedup before every form, never guess an answer, never invent an anecdote, never touch a CAPTCHA or a password. **Nothing in the tracked files assumes a field**: the titles, queries, boards and filters all come from your profile, and `/scout-init` builds them from your answers. The measurements in `reference/` were taken in one discipline and say so where it matters.
 
 ## Quick start
 
@@ -47,7 +47,7 @@ Run `/scout-log` **before** `/scout-report`. The report reads `applications/` an
 
 The inbox sweep uses the browser because the Microsoft 365 connector doesn't accept personal Outlook.com or Hotmail accounts. Any webmail you can read in Chrome works.
 
-Everything in `applications/pending/` is waiting on you: a CAPTCHA, an account wall, a question only you can answer. Each file's Notes say exactly what to do. Clear that folder before asking for more applications.
+The **Needs you** table at the top of `applications/README.md` lists everything waiting on you: a CAPTCHA, an account wall, a question only you can answer, with the next step for each. Clear it before asking for more applications.
 
 ## Your files
 
@@ -64,22 +64,28 @@ To change a rule (a new blacklisted company, a salary band, a city you'd now acc
 
 ## The tracker
 
-Every posting Scout touches becomes one file, filed by status:
+Every posting Scout touches is recorded once, filed by the month it was first handled:
 
 ```
 applications/
-  README.md                         ← generated index (scripts/scout.py index)
-  pending/                          ← needs you: CAPTCHA, account wall, a question only you can answer
-  applied/
-    2026-09-22--ruby-labs--senior-product-designer.md
-  interviewing/  offer/  rejected/  closed/
-  skipped/                          ← with the reason, so the same posting is never re-evaluated
+  README.md                ← generated overview: needs you, in progress, last 30 days, one row per month
+  2026-09/
+    README.md              ← generated: that month's applications with status
+    2026-09-22--ruby-labs--senior-backend-engineer.md
+    2026-09-21--wise--staff-data-scientist.md
+    ...
+    skipped.md             ← one table row per posting passed over, with the reason
+  2026-10/
 ```
+
+- **Applications and hand-offs are files.** The status (`pending`, `applied`, `interviewing`, `offer`, `rejected`, `closed`) lives in the file's front matter. Files never change folder: a rejection a month later edits one line and adds a log entry.
+- **Skips are rows, not files.** Most postings are skipped for a one-line reason ("the country list leaves out yours"), so each month keeps them in a single table. Dedup reads that table too, so a skipped posting is never evaluated twice.
+- **You read the generated pages, not the folders.** `applications/README.md` is rebuilt after every `add` and `move`.
 
 ```markdown
 ---
 company: Ruby Labs
-role: Senior Product Designer
+role: Senior Backend Engineer
 status: applied
 url: https://jobs.ashbyhq.com/ruby-labs/1e548ada-…
 source: freehire
@@ -89,7 +95,7 @@ applied: 2026-09-22
 job_key: uuid:1e548ada-…
 ---
 
-# Senior Product Designer · Ruby Labs
+# Senior Backend Engineer · Ruby Labs
 
 ## Why it fits
 ## Notes
@@ -102,10 +108,11 @@ job_key: uuid:1e548ada-…
 
 ```bash
 python3 scripts/scout.py check <url> --company "Acme"     # exit 1 if already tracked
-python3 scripts/scout.py move <url-or-file> rejected --note "form mail, 2 days"
+python3 scripts/scout.py move <url-or-file> rejected --note "form mail, 2 days"   # edits the status in place
 python3 scripts/scout.py list --status pending
 python3 scripts/scout.py stats --since 2026-09-01
 python3 scripts/scout.py normalize --dry-run                # tidy enum values, fill ats from the url
+python3 scripts/scout.py migrate                             # one-off: old applications/<status>/ folders -> month folders
 ```
 
 `normalize` lowercases `source`, `ats` and `apply_type`, derives the application system (`ats`) from the posting URL, and moves an ATS name that was stored as `source` (a common mix-up in hand-kept trackers) into `ats`. The CSV importer and `add` already do this; run it after editing files by hand.
@@ -115,8 +122,8 @@ python3 scripts/scout.py normalize --dry-run                # tidy enum values, 
 Export your Notion database, Airtable or Google Sheet as CSV, then:
 
 ```bash
-python3 scripts/import_notion_csv.py export.csv --dry-run   # shows what would be created
-python3 scripts/import_notion_csv.py export.csv
+python3 scripts/import_csv.py export.csv --dry-run   # shows what would be created
+python3 scripts/import_csv.py export.csv
 ```
 
 Column names are matched loosely (Position/Role/Title, Company, Status, Job URL, Applied on, Source, Notes…). Rows that point to the same posting are merged. Rows without a URL are imported but can only be matched by company name later, so fill in URLs where you have them.
@@ -127,7 +134,7 @@ Column names are matched loosely (Position/Role/Title, Company, Status, Job URL,
 .claude/skills/     scout-init · scout-run · scout-log · scout-report
 reference/          sources.md (how each job source works) · ats-mechanics.md (how each form system behaves)
 templates/          profile.md · search.example.json
-scripts/            scout.py · freehire_sweep.py · import_notion_csv.py
+scripts/            scout.py · freehire_sweep.py · import_csv.py
 profile/  applications/  runs/     ← yours, git-ignored
 ```
 

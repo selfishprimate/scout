@@ -34,10 +34,19 @@ def search(**kw):
     return curl("https://freehire.me/api/v1/jobs/search?" + urllib.parse.urlencode(kw)).get("data", [])
 
 
+def require(*keys):
+    """Every search term is the candidate's, so an unfilled config stops the run
+    instead of sweeping with a default that belongs to someone else's field."""
+    missing = [k for k in keys if not (FH.get(k) if k in FH else CFG.get(k))]
+    if missing:
+        sys.exit("profile/search.json is missing " + ", ".join(missing) +
+                 ". Run /scout-init, or fill them in by hand (see templates/search.example.json).")
+
+
 def sweep():
+    require("queries", "categories", "regions", "title_keep")
     jobs = [dict(q=q, category=c, work_mode="remote", regions=r)
-            for q in FH["queries"] for c in FH.get("categories", ["design", "frontend", "engineering_design", "product"])
-            for r in FH["regions"]]
+            for q in FH["queries"] for c in FH["categories"] for r in FH["regions"]]
     if FH.get("home_country"):
         jobs += [dict(q=q, countries=FH["home_country"]) for q in FH["queries"]]
     rows = {}
@@ -46,7 +55,7 @@ def sweep():
             for j in res:
                 rows[j.get("public_slug") or j.get("slug")] = j
     keep = re.compile(CFG["title_keep"], re.I)
-    drop = re.compile(CFG["title_drop"], re.I)
+    drop = re.compile(CFG["title_drop"] or r"(?!)", re.I)  # empty regex matches everything; (?!) matches nothing
     blocked_domains = set(CFG.get("blocked_domains", ["gambling"]))
     langs = set(CFG.get("languages", ["en"]))
     window = int(FH.get("window_days", 3))

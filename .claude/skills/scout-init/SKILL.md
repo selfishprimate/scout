@@ -10,7 +10,7 @@ The goal is a complete `profile/profile.md` (from `templates/profile.md`) and `p
 ## Rules for the interview
 
 - **One question per message.** Short, plain, in the user's language. Offer choices with the question tool when the answer is one of a few options; free text otherwise.
-- **Draft, then confirm.** If a CV or LinkedIn URL is available, read it first and turn questions into confirmations ("Your CV says 8 years of product design. Correct?"). Never write a value from the CV without the user confirming it.
+- **Draft, then confirm.** If a CV or LinkedIn URL is available, read it first and turn questions into confirmations ("Your CV says 8 years in this field. Correct?"). Never write a value from the CV without the user confirming it.
 - **Skippable.** "Skip" or "later" writes `ASK` and moves on. Sensitive items (birth date, ethnicity, disability, gender, salary history) default to "prefer not to say" unless the user volunteers a value.
 - **Resumable.** After each answered section, save progress to `profile/.init-state.json` (`{"done": ["identity", ...], "answers": {...}}`) and write what's known into `profile/profile.md`. On restart, read the state file, say where you're resuming, and continue.
 - **Explain once why** at the start: "I'll ask about 40 short questions in 9 groups. Everything stays in `profile/`, which git ignores."
@@ -29,8 +29,14 @@ The goal is a complete `profile/profile.md` (from `templates/profile.md`) and `p
 7. **Boundaries (§7).** Sectors never to apply to (offer: gambling/betting, adult, weapons/defense, tobacco, crypto, fast fashion, none). Companies to never apply to. Sectors to ask about first.
 8. **Fact bank and stories (§8).** Walk through each job on the CV and ask for **2–3 concrete facts** each (a number, a product, a decision, a tool combination). Then ask for 3 short stories for behavioural questions: a time they were wrong, a conflict, a failure, a system they built outside work. Only facts and stories captured here may appear in applications.
 9. **Voice (§9).** Show two short sample answers in different registers and ask which sounds like them. Ask for phrases they hate. Ask about punctuation habits (em dashes, exclamation marks) and US vs UK English.
-10. **Search config.** Build `profile/search.json` from the template: freehire queries (from target titles, lowercase), regions (from §6), home country code, accepted posting languages, title keep/drop regexes (extend the template's with their field's false positives), LinkedIn searches (one row per title family × geography, remote flag per §6), boards and cadence. Show the list and let them trim.
-11. **Tracker import (optional).** Ask whether they already track applications somewhere. Notion or any spreadsheet → export as CSV → `python3 scripts/import_notion_csv.py <file>.csv --dry-run`, show the counts, then run it for real. This is what makes dedup work from day one.
+10. **Search config.** Build `profile/search.json` from the template. **Every search value is theirs; the template ships the keys empty on purpose, so fill them from this candidate's field and geography rather than from an example.**
+    - freehire `queries` (their target titles, lowercase) and `categories`: don't guess the taxonomy — run `curl -sS -A scout "https://freehire.me/api/v1/jobs/facets?q=<their main title>"` and pick the categories that actually carry their field, then show them the counts.
+    - `regions` and `home_country` from §6; `languages` from §1.
+    - `title_keep`: the title families worth opening. `title_drop`: wrong seniority **plus the other industries that share their job title** — ask them which ones ("who else calls themselves this?"), because they know their field's collisions and you don't. The template's `_title_filters` comment holds a worked example from another discipline; use its shape, not its words.
+    - LinkedIn `searches`: one row per title family × geography, remote flag per §6; a second row without the remote flag for any geography where they can work on-site. geoIds from the table in `reference/sources.md`.
+    - `boards`: ask which boards they already read. A niche board for their own discipline beats every generic remote board (`reference/sources.md`, "Other boards").
+    Show the finished list and let them trim it.
+11. **Tracker import (optional).** Ask whether they already track applications somewhere. Notion or any spreadsheet → export as CSV → `python3 scripts/import_csv.py <file>.csv --dry-run`, show the counts, then run it for real. This is what makes dedup work from day one.
 12. **Finish.** Write the final `profile/profile.md` (fill §10–§12, set "Last updated"), delete `profile/.init-state.json`, run `python3 scripts/scout.py index`, then print:
     - which fields are still `ASK` (each one line),
     - the browser prerequisite (Claude in Chrome extension, logged in to LinkedIn),

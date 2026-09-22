@@ -1,29 +1,29 @@
 {
-  "_comment": "Machine-readable search config. /scout-init writes profile/search.json from this template. Human rules live in profile/profile.md.",
+  "_comment": "Machine-readable search config. /scout-init writes profile/search.json from this template, filling every value from the candidate's own field and geography. Human rules live in profile/profile.md.",
+  "_title_filters": "title_keep = the title families worth opening, as one case-insensitive regex. title_drop = wrong seniority, wrong discipline, and the other industries that share your job title. Both are field-specific: build them from the candidate's target titles, then add false positives as runs reveal them. Worked example for a product designer: keep 'product design|\\bux\\b|design system|\\bdesigner\\b', drop 'junior|intern|head of|director|graphic|motion|industrial|mechanical|fpga|pcb|interior|fashion|textile|game artist' (the last eight are other industries whose jobs are also called 'designer').",
   "languages": ["en"],
   "blocked_domains": ["gambling", "adult"],
-  "title_keep": "product design|\\bux\\b|\\bui\\b|ui/|design system|design engineer|design technolog|\\bdesigner\\b",
-  "title_drop": "junior|intern|graduate|werkstudent|praktik|apprentice|head of|director|manager|graphic|motion|illustrat|industrial|mechanical|electrical|hardware|fpga|asic|pcb|analog|silicon|verification|civil|structural|interior|fashion|textile|furniture|packaging|marketing designer|brand designer|presentation|instructional|game artist|3d artist|video|cnc|hvac|piping|circuit|chip|landscape",
+  "title_keep": "",
+  "title_drop": "junior|intern|graduate|werkstudent|praktik|apprentice|head of|director|vp of|chief",
   "freehire": {
-    "queries": ["product designer", "ux designer", "ui designer"],
-    "categories": ["design", "frontend", "engineering_design", "product"],
+    "_categories": "freehire's own taxonomy. A discipline is usually spread over several, so query each one. Run `curl -A scout 'https://freehire.me/api/v1/jobs/facets?q=<target title>'` to see the categories and counts for this candidate's field.",
+    "queries": [],
+    "categories": [],
     "regions": ["global", "eu", "emea", "europe"],
     "home_country": "",
     "window_days": 3
   },
   "linkedin": {
+    "_searches": "One row per title family x geography. Keywords unquoted (quotes cut recall). geo_id from the table in reference/sources.md; 92000000 = Worldwide, 91000002 = EEA. remote = the f_WT=2 filter, which hides hybrid and on-site roles, so add a second row without it for any geography where the candidate can work on-site.",
     "home_geo_id": "",
     "window": "r259200",
     "searches": [
-      {"keywords": "Product Designer", "geo_id": "92000000", "remote": true},
-      {"keywords": "Senior Product Designer", "geo_id": "91000002", "remote": false},
-      {"keywords": "UX Designer", "geo_id": "91000002", "remote": true}
+      {"keywords": "", "geo_id": "92000000", "remote": true},
+      {"keywords": "", "geo_id": "91000002", "remote": true}
     ]
   },
+  "_boards": "Job boards for this candidate's field, with how often they are worth a visit. reference/sources.md rates the general ones; niche boards are per-discipline, so ask the candidate which they already read.",
   "boards": [
-    {"name": "jobs.intodesignsystems.com", "cadence": "daily"},
-    {"name": "designsystems.jobs", "cadence": "2-3x/week"},
-    {"name": "Working Nomads", "cadence": "2x/week"},
-    {"name": "Glassdoor (home country, keyword designer)", "cadence": "weekly"}
+    {"name": "", "cadence": "weekly"}
   ]
 }

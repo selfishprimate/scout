@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Import a tracker exported from Notion (or any CSV) into applications/.
+"""Import an existing tracker (Notion, Airtable, Google Sheets, any CSV) into
+applications/<YYYY-MM>/.
 
-  python3 scripts/import_notion_csv.py path/to/export.csv [--dry-run]
+  python3 scripts/import_csv.py path/to/export.csv [--dry-run]
 
 Column names are matched loosely (Position/Role/Title, Company, Status, Job URL/URL,
 Applied on/Date, Source, Apply type, Location fit, Remote scope, Fit score, Posted,
@@ -103,17 +104,13 @@ def main():
                     remote_scope=top["remote_scope"], fit=top["fit"], posted=top["posted"],
                     applied=top["applied"] if top["status"] not in ("pending", "skipped") else "",
                     updated=top["updated"] or when, job_key=scout.job_key(top["url"]))
-        body = f"# {meta['role']} · {meta['company']}\n\n## Why it fits\n\n{top['why']}\n\n## Notes\n\n" + \
-               "\n\n".join(n for n in notes if n) + "\n\n## Answers submitted\n\n\n## Log\n\n" + \
-               f"- {when}: {top['status']} (imported)\n"
-        name = f"{when}--{scout.slug(meta['company'], 30)}--{scout.slug(meta['role'], 40)}.md"
-        path = scout.APPS / meta["status"] / name
-        i = 2
-        while path.exists():
-            path = scout.APPS / meta["status"] / name.replace(".md", f"-{i}.md")
-            i += 1
-        scout.fix_meta(meta)
-        scout.write(path, meta, body)
+        notes_txt = "\n\n".join(x for x in notes if x)
+        if meta["status"] == "skipped":
+            meta["notes"] = notes_txt or top["why"]
+            scout.save(meta)
+        else:
+            scout.save(meta, scout.body_for(meta["role"], meta["company"], top["why"], notes_txt,
+                                            log=f"- {when}: {top['status']} (imported)"))
         made += 1
     print(f"{len(raw)} rows → {made} files" + (" (dry run)" if a.dry_run else ""))
     if not a.dry_run:

@@ -365,7 +365,8 @@ Section = vendor name; BambooHR, Revolut and account walls → Hand off; Viterbi
 - **URLs:** `<company>.pinpointhq.com/en/postings/<uuid>`; form `.../postings/<id>/applications/new`.
 - **Set values:** plain ids (`application_form_application_first_name` …), native setter works. Phone flag defaults to the posting's country → type `<PHONE_E164>` and it corrects. Address line is mandatory (`<ADDRESS_LINE>`, `<CITY>`, `<POSTCODE>`).
 - **File upload:** hidden `input[type=file][name="application_form[application][cv]"]` → make visible → `find` → `file_upload`. Input disappears after upload — normal.
-- **Submit:** mandatory "(Required) Allow us to process your personal information" → dispatch click on `cb.closest('label')`.
+- **Submit:** mandatory "(Required) Allow us to process your personal information". It is a "pretty checkbox": the real `input` is 0x0 and its `.checked` stays **false** even once the box is visibly ticked, so the DOM flag is useless. Click the visible `.pretty` container by coordinate and **verify with a zoom**, not with JS. A failed submit re-renders the form and clears it, so re-tick before every retry.
+- **Salary answers are number-only** even though the field is `type=text` with no pattern. "GBP 50,000 to 62,000 per year" failed with "Text based answers to questions does not match required format"; a bare `62000` passed. The other text answers survive the failed submit, so only the number needs fixing.
 
 ## Rippling
 

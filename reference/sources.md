@@ -255,7 +255,7 @@ UI fallback (browser): `https://freehire.me/jobs?q=<search>&regions=europe,globa
 
 ### Other boards
 
-**Do not use (measured dead or paid):** Remotive (paywall, 0.4% visible) · We Work Remotely (paid) · Arbeitnow API (ignores the search term: "product designer", "postdoc" and "zzzz" return the same 20) · Himalayas (single-agency spam, `?search=` ignored) · Welcome to the Jungle/Otta (no open search) · euremotejobs, uxjobsboard, europeremotely, justremote, landing.jobs (dead) · Adzuna (CAPTCHA wall) · haystack.cv (country list excludes most candidates) · EWOR GmbH postings (every apply URL 404).
+**Do not use (measured dead or paid):** Remotive (paywall, 0.4% visible) · We Work Remotely (paid) · Arbeitnow API (ignores the search term: "product designer", "postdoc" and "zzzz" return the same 20) · Himalayas (single-agency spam, `?search=` ignored) · Welcome to the Jungle/Otta (no open search) · euremotejobs, uxjobsboard, europeremotely, justremote, landing.jobs (dead) · Adzuna (CAPTCHA wall) · Indeed search (Cloudflare wall, see below) · haystack.cv (country list excludes most candidates) · EWOR GmbH postings (every apply URL 404).
 
 
 **designsystems.jobs**
@@ -360,6 +360,13 @@ window.MORE=function(){var b=[...document.querySelectorAll('button')]
 Lesson, and it is the transferable one: **generic remote boards are US-heavy and stale, while one good niche board for the candidate's discipline outperforms all of them.** After this measurement the board step shrank to one niche board daily, one generic board twice a week, and one discovery-only board monthly. Find the equivalent three for the candidate's field rather than adding more generic boards.
 
 **11th platform, Glassdoor:** home country only, one broad discipline keyword + the home `IN<id>`.
+
+**Indeed as a search source: blocked, although its apply form is not.**
+- `*.indeed.com/jobs?q=...` returns a Cloudflare interstitial ("Additional verification required", Ray ID) to the browser extension. It does not self-resolve on a wait, and getting past it would mean defeating bot detection, which Scout never does.
+- **The block is account-wide across country domains, not per domain.** Measured 22 Sept on `tr.indeed.com` and `ie.indeed.com`: identical wall, different Ray IDs. Trying more domains is not a workaround.
+- Indeed runs one site per country (`tr.`, `ie.`, `de.`, `uk.`, `www.` for the US). A country site indexes that country's postings and its location box resolves inside that country, so one domain is **not** a window onto the others. **This last point is unverified** — the wall blocked the measurement. Test it before relying on it.
+- **Indeed's inventory is already partly reachable**: Glassdoor "Easy Apply" hands off to `smartapply.indeed.com`, and that form is documented in `ats-mechanics.md`. So the apply path works even though the search path does not.
+- If the candidate wants Indeed coverage, the only honest route is manual: they search on their own Indeed and hand over the URLs, which dedup and the normal filters then process. Don't add it to the automated board rotation.
 
 **Other dead or low-value sources.** Reachability notes transfer; the discipline-specific ones are marked.
 - `relocate.me`: the discipline category was empty and the listing stale. Weekly at most.

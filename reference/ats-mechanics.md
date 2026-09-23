@@ -371,6 +371,20 @@ Section = vendor name; BambooHR, Revolut and account walls → Hand off; Viterbi
 - **Submit:** mandatory "(Required) Allow us to process your personal information". It is a "pretty checkbox": the real `input` is 0x0 and its `.checked` stays **false** even once the box is visibly ticked, so the DOM flag is useless. Click the visible `.pretty` container by coordinate and **verify with a zoom**, not with JS. A failed submit re-renders the form and clears it, so re-tick before every retry.
 - **Salary answers are number-only** even though the field is `type=text` with no pattern. "GBP 50,000 to 62,000 per year" failed with "Text based answers to questions does not match required format"; a bare `62000` passed. The other text answers survive the failed submit, so only the number needs fixing.
 
+## Sage HR (`talent.sage.hr/jobs/<uuid>`)
+
+- Short form: first name, last name, email, phone, one CV upload, then consents. No residence or
+  work-authorization questions of its own, so the posting's own text is the only location gate.
+- **The terms checkbox lies about being optional.** `applicant_agree_to_terms` reports
+  `required=false`, and the submit button is enabled, but client-side validation refuses with a red
+  **"Please agree to Terms & Conditions"** under the form and the page does not move. Nothing
+  appears in a `fetch` error capture because no request is ever made. Measured 23 Sept on Paybis.
+  Since Scout never accepts terms of use, this ATS is **always a hand-off**: fill everything, upload
+  the CV, leave the box, and hand over with the exact remaining action.
+- Two privacy radios, "this position only" versus "all suitable positions". Pick the narrower one.
+- The upload area confirms with the text **"1 file selected"**, not a filename, so grepping the page
+  for the CV's name returns nothing. Verify from that string or from a screenshot.
+
 ## Rippling
 
 - **URLs:** `ats.rippling.com/...`, also white-labelled on employer sites.

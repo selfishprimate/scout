@@ -401,6 +401,12 @@ Section = vendor name; BambooHR, Revolut and account walls → Hand off; Viterbi
   shown instead of a phone error.
 - Consent checkboxes can be duplicated: two identical 24-month talent-pool consents, one whose label
   starts with "Required." and one without. Tick the first, leave the second.
+- **The consent checkbox does not accept a JS label click.** `label.click()` sets `.checked` to true and
+  reports success, and the form still refuses with the consent error. Click it by coordinate and confirm
+  with a zoom, the same rule Recruitee already has.
+- **A post-submit re-render can look exactly like a validation failure**: the form comes back empty with
+  a red required-consent message. Before refilling, reload the posting and look for "You already applied
+  for this job", which is Teamtailor's own applied marker.
 
 ## Recruitly (`boards.recruitly.app/job/<a>/<b>`)
 

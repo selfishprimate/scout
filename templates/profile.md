@@ -1,8 +1,8 @@
 # Candidate profile — {{FULL_NAME}}
 
-This file is the only place personal values live. The Scout skills read it at the start of every run and never hardcode any of it. When a preference changes, change it here, not in the skills.
+This file is the only place personal values live. The Seekter skills read it at the start of every run and never hardcode any of it. When a preference changes, change it here, not in the skills.
 
-Written by `/scout-init`. Every value is concrete; the engine never fills a gap by guessing. Anything marked `ASK` is treated as unknown: the run asks the user instead of answering.
+Written by `/seekter-init`. Every value is concrete; the engine never fills a gap by guessing. Anything marked `ASK` is treated as unknown: the run asks the user instead of answering.
 
 Last updated: {{DATE}}.
 
@@ -198,10 +198,10 @@ Machine-readable queries live in `profile/search.json`. Human notes:
 
 ## 11. Tracker
 
-Applications are markdown files in `applications/<YYYY-MM>/` (status in the front matter), skips are rows in each month's `skipped.md`; both written only through `scripts/scout.py`. Statuses: pending · applied · interviewing · offer · rejected · closed · skipped. Location fit codes: A · B · C (§6).
+Applications are markdown files in `applications/<YYYY-MM>/` (status in the front matter), skips are rows in each month's `skipped.md`; both written only through `scripts/seekter.py`. Statuses: pending · applied · interviewing · offer · rejected · closed · skipped. Location fit codes: A · B · C (§6).
 
 ---
 
 ## 12. Open items only the user can do
 
-- (Scout adds hand-offs here: CAPTCHAs, account walls, anecdotes it doesn't have, T&C acceptance.)
+- (Seekter adds hand-offs here: CAPTCHAs, account walls, anecdotes it doesn't have, T&C acceptance.)

@@ -10,13 +10,13 @@ import argparse, concurrent.futures as cf, datetime as dt, html, json, re, subpr
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import scout  # noqa: E402
+import seekter  # noqa: E402
 
-ROOT = scout.ROOT
+ROOT = seekter.ROOT
 CFG = json.loads((ROOT / "profile" / "search.json").read_text(encoding="utf-8"))
 FH = CFG["freehire"]
-UA = "Mozilla/5.0 scout"
-OUT = ROOT / "runs" / scout.TODAY
+UA = "Mozilla/5.0 seekter"
+OUT = ROOT / "runs" / seekter.TODAY
 ELIG = re.compile(r"[^.\n]*(based in|authori[sz]ed to work|eligible to work|residen|time ?zone|GMT|CET|UTC|"
                   r"countr|relocat|sponsor|visa|hybrid|office|remote|years)[^.\n]*", re.I)
 
@@ -40,7 +40,7 @@ def require(*keys):
     missing = [k for k in keys if not (FH.get(k) if k in FH else CFG.get(k))]
     if missing:
         sys.exit("profile/search.json is missing " + ", ".join(missing) +
-                 ". Run /scout-init, or fill them in by hand (see templates/search.example.json).")
+                 ". Run /seekter-init, or fill them in by hand (see templates/search.example.json).")
 
 
 def sweep():
@@ -59,7 +59,7 @@ def sweep():
     blocked_domains = set(CFG.get("blocked_domains", ["gambling"]))
     langs = set(CFG.get("languages", ["en"]))
     window = int(FH.get("window_days", 3))
-    tracked = {r.get("job_key") for r in scout.all_apps()}
+    tracked = {r.get("job_key") for r in seekter.all_apps()}
     now = dt.datetime.now(dt.timezone.utc)
     out, stats = [], dict(raw=len(rows), closed=0, sector=0, language=0, title=0, stale=0, tracked=0)
     for s, j in rows.items():
@@ -82,7 +82,7 @@ def sweep():
         url = re.sub(r"[?&]utm_[^&]*", "", j.get("url") or "")
         if "?" not in url:
             url = url.replace("&", "?", 1)
-        if scout.job_key(url) in tracked:
+        if seekter.job_key(url) in tracked:
             stats["tracked"] += 1; continue
         co = j.get("company")
         out.append(dict(slug=s, title=t, company=co.get("name") if isinstance(co, dict) else co,
@@ -92,7 +92,7 @@ def sweep():
     out.sort(key=lambda x: x["age"])
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "freehire.json").write_text(json.dumps(out, indent=1, ensure_ascii=False), encoding="utf-8")
-    print(json.dumps(stats), f"→ {len(out)} candidates  (runs/{scout.TODAY}/freehire.json)")
+    print(json.dumps(stats), f"→ {len(out)} candidates  (runs/{seekter.TODAY}/freehire.json)")
     for i, o in enumerate(out):
         print(f"{i:>2} | {o['age']}d | {o['company']} | {o['title']} | {o['location']} | {o['url'][:80]}")
 

@@ -1,7 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 scripts/scout.py:*)",
+      "Bash(python3 scripts/seekter.py:*)",
       "Bash(python3 scripts/freehire_sweep.py:*)",
       "Bash(python3 scripts/import_csv.py:*)",
       "Bash(curl -sS:*)",

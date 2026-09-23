@@ -1,11 +1,11 @@
 ---
-name: scout-init
-description: Set up Scout for a new candidate. Interviews the user one question at a time and writes profile/profile.md, profile/search.json and profile/documents/. Use when the user runs /scout-init, says "set up scout", or when profile/profile.md is missing.
+name: seekter-init
+description: Set up Seekter for a new candidate. Interviews the user one question at a time and writes profile/profile.md, profile/search.json and profile/documents/. Use when the user runs /seekter-init, says "set up seekter", or when profile/profile.md is missing.
 ---
 
-# /scout-init — build the candidate profile
+# /seekter-init — build the candidate profile
 
-The goal is a complete `profile/profile.md` (from `templates/profile.md`) and `profile/search.json` (from `templates/search.example.json`). Every other Scout skill reads only these files, so nothing may be guessed here: a value the user didn't give stays `ASK`.
+The goal is a complete `profile/profile.md` (from `templates/profile.md`) and `profile/search.json` (from `templates/search.example.json`). Every other Seekter skill reads only these files, so nothing may be guessed here: a value the user didn't give stays `ASK`.
 
 ## Rules for the interview
 
@@ -30,17 +30,17 @@ The goal is a complete `profile/profile.md` (from `templates/profile.md`) and `p
 8. **Fact bank and stories (§8).** Walk through each job on the CV and ask for **2–3 concrete facts** each (a number, a product, a decision, a tool combination). Then ask for 3 short stories for behavioural questions: a time they were wrong, a conflict, a failure, a system they built outside work. Only facts and stories captured here may appear in applications.
 9. **Voice (§9).** Show two short sample answers in different registers and ask which sounds like them. Ask for phrases they hate. Ask about punctuation habits (em dashes, exclamation marks) and US vs UK English.
 10. **Search config.** Build `profile/search.json` from the template. **Every search value is theirs; the template ships the keys empty on purpose, so fill them from this candidate's field and geography rather than from an example.**
-    - freehire `queries` (their target titles, lowercase) and `categories`: don't guess the taxonomy — run `curl -sS -A scout "https://freehire.me/api/v1/jobs/facets?q=<their main title>"` and pick the categories that actually carry their field, then show them the counts.
+    - freehire `queries` (their target titles, lowercase) and `categories`: don't guess the taxonomy — run `curl -sS -A seekter "https://freehire.me/api/v1/jobs/facets?q=<their main title>"` and pick the categories that actually carry their field, then show them the counts.
     - `regions` and `home_country` from §6; `languages` from §1.
     - `title_keep`: the title families worth opening. `title_drop`: wrong seniority **plus the other industries that share their job title** — ask them which ones ("who else calls themselves this?"), because they know their field's collisions and you don't. The template's `_title_filters` comment holds a worked example from another discipline; use its shape, not its words.
     - LinkedIn `searches`: one row per title family × geography, remote flag per §6; a second row without the remote flag for any geography where they can work on-site. geoIds from the table in `reference/sources.md`.
     - `boards`: ask which boards they already read. A niche board for their own discipline beats every generic remote board (`reference/sources.md`, "Other boards").
     Show the finished list and let them trim it.
 11. **Tracker import (optional).** Ask whether they already track applications somewhere. Notion or any spreadsheet → export as CSV → `python3 scripts/import_csv.py <file>.csv --dry-run`, show the counts, then run it for real. This is what makes dedup work from day one.
-12. **Finish.** Write the final `profile/profile.md` (fill §10–§12, set "Last updated"), delete `profile/.init-state.json`, run `python3 scripts/scout.py index`, then print:
+12. **Finish.** Write the final `profile/profile.md` (fill §10–§12, set "Last updated"), delete `profile/.init-state.json`, run `python3 scripts/seekter.py index`, then print:
     - which fields are still `ASK` (each one line),
     - the browser prerequisite (Claude in Chrome extension, logged in to LinkedIn),
-    - the next command: `/scout-run`.
+    - the next command: `/seekter-run`.
 
 ## Writing the files
 

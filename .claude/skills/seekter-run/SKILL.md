@@ -1,9 +1,9 @@
 ---
-name: scout-run
-description: Run a daily job search and auto-apply session for the candidate in profile/profile.md. Use when the user runs /scout-run or asks to start applications, search for jobs, run today's scan, or apply to postings.
+name: seekter-run
+description: Run a daily job search and auto-apply session for the candidate in profile/profile.md. Use when the user runs /seekter-run or asks to start applications, search for jobs, run today's scan, or apply to postings.
 ---
 
-# /scout-run — search and auto-apply
+# /seekter-run — search and auto-apply
 
 A template engine. **Everything personal lives in `profile/`**; this file holds only procedure, judgment rules and guardrails.
 
@@ -18,10 +18,10 @@ A template engine. **Everything personal lives in `profile/`**; this file holds 
 
 Placeholders in the reference docs (`<FIRST_NAME>`, `<EMAIL>`, `<PHONE_LOCAL>`, `<CV_NAME>`, `PROFILE_QUERIES`, `PROFILE_REGIONS`, `PROFILE_HOME_COUNTRY`…) resolve from the profile.
 
-If `profile/profile.md` is missing or still contains `{{`, stop and run `/scout-init`.
+If `profile/profile.md` is missing or still contains `{{`, stop and run `/seekter-init`.
 
 Then:
-1. `python3 scripts/scout.py stats` to see the tracker's size. Dedup is `python3 scripts/scout.py check <url> --company <name>`: exit code 1 = already tracked.
+1. `python3 scripts/seekter.py stats` to see the tracker's size. Dedup is `python3 scripts/seekter.py check <url> --company <name>`: exit code 1 = already tracked.
 2. Open a task list in this order: the five source steps below, then **"Filter and rank"**, then **"Apply"**, then "Log to tracker" and "Report". Applying is one task at the end, not something interleaved with the sweeping, for the reason in §1.
 3. Load the Claude in Chrome tools in one ToolSearch call; check `tabs_context_mcp`. Without the extension, only step 1 and the API parts of step 5 can run: say so.
 
@@ -48,8 +48,8 @@ Rules:
 
 ## 2. Filter every candidate (in this order)
 
-1. **Dedup by Job URL / job ID**, right before opening each form, not only at run start. Same company + different role is fine; same URL = stop. Repeat for every source added mid-run. LinkedIn's `applyingInfo.applied` is unreliable (`undefined`); `scripts/scout.py check` is the truth.
-   - **Run `check` on the apply URL, not only on the source's own job id.** A record is keyed on whichever URL it was first applied through, so a job found on LinkedIn today may be stored under its Ashby/Lever UUID from a board three weeks ago. A bulk grep of source ids will not find it. Measured 23 Sept: a Design System Designer was applied to twice in September and already rejected, and was submitted a **third** time because the sweep deduped 88 LinkedIn ids and the record was keyed `uuid:…`. The check is one command and it runs **after** you resolve the apply URL and **before** you type anything: `python3 scripts/scout.py check "<apply url>" --company "<name>"`.
+1. **Dedup by Job URL / job ID**, right before opening each form, not only at run start. Same company + different role is fine; same URL = stop. Repeat for every source added mid-run. LinkedIn's `applyingInfo.applied` is unreliable (`undefined`); `scripts/seekter.py check` is the truth.
+   - **Run `check` on the apply URL, not only on the source's own job id.** A record is keyed on whichever URL it was first applied through, so a job found on LinkedIn today may be stored under its Ashby/Lever UUID from a board three weeks ago. A bulk grep of source ids will not find it. Measured 23 Sept: a Design System Designer was applied to twice in September and already rejected, and was submitted a **third** time because the sweep deduped 88 LinkedIn ids and the record was keyed `uuid:…`. The check is one command and it runs **after** you resolve the apply URL and **before** you type anything: `python3 scripts/seekter.py check "<apply url>" --company "<name>"`.
    - **Run it on every posting, including the ones that feel obviously new.** The rule was written on 23 Sept after one duplicate submission, saved four more applications the same afternoon, and was then skipped once on a board posting that turned out to have been applied to eight days earlier. Skipping it costs a filled form; running it costs one line.
 2. **Blacklist and sensitive sectors** (profile §7). Read the sector from the **company's own pitch**, not the title (a plain, on-target job title over a company that describes itself as a "European leader in sports betting"). freehire `enrichment.domains`, Djinni `Domain:`. Sensitive sector → skip silently, log reason, never ask. Sectors marked "ask" → ask.
 3. **Role fit** (profile §5).
@@ -113,7 +113,7 @@ Modifiers: newest postings early (first 1–2 hours = few applicants); high appl
 10. Submit. Then verify on the job page or ATS confirmation.
     - **Silent submit:** wrap `fetch`/XHR to capture ≥400 bodies *before* retrying (snippet in `ats-mechanics.md` universal rules). A 422 "already applied" means the first send worked.
     - **An error page after the final step ≠ failure.** Go back to the job page and read its status. Never refill blindly.
-11. Log it immediately with `scripts/scout.py add` (§7).
+11. Log it immediately with `scripts/seekter.py add` (§7).
 
 ## 5. Writing (cover letters, free text)
 
@@ -133,7 +133,7 @@ Use the profile's **voice** section and **fact bank**. Engine rules that always 
 - **Never** send emails or messages as the user, post reviews or salaries, pay or subscribe, download untrusted files.
 - **Never submit a value you can't verify.** A wrong answer is worse than a hand-off.
 - **Tabs:** each half-filled or handed-off form keeps its own tab; never `force` through a "Leave site?" prompt. Verify with `tabs_context_mcp` before telling the user a form is waiting.
-- If the Chrome extension disconnects: log progress with `scripts/scout.py`, list the queue, ask the user to reopen Chrome. Don't switch to a browser that can't upload files for CV forms.
+- If the Chrome extension disconnects: log progress with `scripts/seekter.py`, list the queue, ask the user to reopen Chrome. Don't switch to a browser that can't upload files for CV forms.
 - **Don't start side projects.** When the user states a new rule mid-run, save it to the profile (§7 step 2) and go back to applying.
 
 **Stop and ask only when:** a hard knockout answered No · personal data that would need guessing · the role isn't really in scope or its core is local-language writing · money required · a sector marked "ask". Everything else: decide, log, move on. If the user said they're away, don't interrupt at all; collect questions for the report.
@@ -142,7 +142,7 @@ Use the profile's **voice** section and **fact bank**. Engine rules that always 
 
 1. **Tracker:** one record per application **and per skip**, through the CLI only (never hand-write the front matter or the skipped table). Applications and hand-offs become files in `applications/<YYYY-MM>/`; skips become one row in that month's `skipped.md` (put the reason in `--notes`, one line).
    ```
-   python3 scripts/scout.py add --company "X" --role "Y" --status applied|skipped|pending \
+   python3 scripts/seekter.py add --company "X" --role "Y" --status applied|skipped|pending \
      --url "<posting url>" --source freehire|linkedin|<board> --ats ashby --apply-type company-site|easy-apply|email \
      --location-fit A|B|C --remote-scope "..." --fit 1-5 \
      --why "one line" --notes "reason, confirmation number, salary given, hand-off details" \
@@ -175,4 +175,4 @@ Use the profile's **voice** section and **fact bank**. Engine rules that always 
 
 ## Profile schema
 
-See `templates/profile.md` (sections 1–12). `/scout-init` fills it.
+See `templates/profile.md` (sections 1–12). `/seekter-init` fills it.

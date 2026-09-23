@@ -13,7 +13,7 @@ import argparse, csv, datetime as dt, re, sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import scout  # noqa: E402
+import seekter  # noqa: E402
 
 STATUS_MAP = {
     "shortlisted": "pending", "pending": "pending", "to apply": "pending", "draft": "pending",
@@ -86,7 +86,7 @@ def main():
         for f in ("applied", "updated", "posted"):
             r[f] = date(r[f])
         r["location_fit"] = fit_code(r["location_fit"])
-        key = scout.job_key(r["url"]) or f"{scout.slug(r['company'])}|{scout.slug(r['role'])}|{r['applied']}"
+        key = seekter.job_key(r["url"]) or f"{seekter.slug(r['company'])}|{seekter.slug(r['role'])}|{r['applied']}"
         groups.setdefault(key, []).append(r)
 
     made = 0
@@ -94,7 +94,7 @@ def main():
         rs.sort(key=lambda r: RANK[r["status"]], reverse=True)
         top = rs[0]
         notes = [top["notes"]] + [f"(merged row, status {o['status']}) {o['notes']}" for o in rs[1:] if o["notes"]]
-        when = top["applied"] or top["updated"] or max((o["applied"] or o["updated"] for o in rs), default="") or scout.TODAY
+        when = top["applied"] or top["updated"] or max((o["applied"] or o["updated"] for o in rs), default="") or seekter.TODAY
         if a.dry_run:
             print(f"{top['status']:<12} {when} {top['company']} | {top['role']}" + (f"  (+{len(rs)-1} merged)" if len(rs) > 1 else ""))
             made += 1
@@ -103,18 +103,18 @@ def main():
                     source=top["source"], apply_type=top["apply_type"], location_fit=top["location_fit"],
                     remote_scope=top["remote_scope"], fit=top["fit"], posted=top["posted"],
                     applied=top["applied"] if top["status"] not in ("pending", "skipped") else "",
-                    updated=top["updated"] or when, job_key=scout.job_key(top["url"]))
+                    updated=top["updated"] or when, job_key=seekter.job_key(top["url"]))
         notes_txt = "\n\n".join(x for x in notes if x)
         if meta["status"] == "skipped":
             meta["notes"] = notes_txt or top["why"]
-            scout.save(meta)
+            seekter.save(meta)
         else:
-            scout.save(meta, scout.body_for(meta["role"], meta["company"], top["why"], notes_txt,
+            seekter.save(meta, seekter.body_for(meta["role"], meta["company"], top["why"], notes_txt,
                                             log=f"- {when}: {top['status']} (imported)"))
         made += 1
     print(f"{len(raw)} rows → {made} files" + (" (dry run)" if a.dry_run else ""))
     if not a.dry_run:
-        scout.cmd_index(None)
+        seekter.cmd_index(None)
 
 
 if __name__ == "__main__":

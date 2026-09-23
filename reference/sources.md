@@ -30,7 +30,7 @@ Where a measurement needed a concrete query to be verifiable, the number is kept
   - **EEA (`91000002`) excludes the UK, Switzerland and every non-EEA European country**, so those need separate alerts and searches.
   - Seniority filters pull in the level above the one you want.
   - **The Remote filter hides hybrid and on-site roles** in target countries.
-  - Noise titles: another industry using the same words (see "Title collisions" in `/scout-run` §2.3).
+  - Noise titles: another industry using the same words (see "Title collisions" in `/seekter-run` §2.3).
 - **Unquoted breadth:** adding words doesn't narrow results (a two-word title Worldwide remote = 1,579; the same title plus a third word = 1,527). LinkedIn treats an unquoted query as loose, OR-like and relevance-sorted. **Result count says nothing about alert quality, so filter by title**.
 - **Notification type:** keep very broad alerts (thousands of results) as notification-only so they don't flood the inbox; put narrow ones on email plus notification.
 - **Small markets:** search the **broadest single word** of the candidate's discipline, not their exact title. Measured in a small home market: the two-word title missed two senior roles that the one-word search found, because local postings use local title conventions. The same holds on Glassdoor.

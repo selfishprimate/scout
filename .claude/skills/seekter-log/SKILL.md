@@ -1,23 +1,23 @@
 ---
-name: scout-log
-description: Update the application tracker. Record replies (rejection, screening, interview, offer), log an application the user made by hand, or sweep the inbox for replies. Use when the user runs /scout-log, says a company replied or rejected them, or asks to check emails for responses.
+name: seekter-log
+description: Update the application tracker. Record replies (rejection, screening, interview, offer), log an application the user made by hand, or sweep the inbox for replies. Use when the user runs /seekter-log, says a company replied or rejected them, or asks to check emails for responses.
 ---
 
-# /scout-log — keep the tracker true
+# /seekter-log — keep the tracker true
 
-All changes go through `scripts/scout.py`; never edit front matter or `skipped.md` by hand. `move` changes the status inside the file (files never change folder) and appends a log line; moving a skip to any other status turns its table row into a file, and moving a file to `skipped` turns it into a row.
+All changes go through `scripts/seekter.py`; never edit front matter or `skipped.md` by hand. `move` changes the status inside the file (files never change folder) and appends a log line; moving a skip to any other status turns its table row into a file, and moving a file to `skipped` turns it into a row.
 
 ## A. The user tells you something
 
 | User says | Command |
 |---|---|
-| "X rejected me" | `python3 scripts/scout.py move <url-or-file> rejected --note "<date>, <one line from the mail>"` |
+| "X rejected me" | `python3 scripts/seekter.py move <url-or-file> rejected --note "<date>, <one line from the mail>"` |
 | "X invited me to a call / screening / interview" | `move … interviewing --note "<stage, date, who>"` |
 | "Got an offer from X" | `move … offer --note "<amount, deadline>"` |
 | "I applied to X myself" | `check <url>` first, then `add --status applied --source manual --notes "applied by hand"` |
 | "Forget X" / "Don't apply to X again" | `move … skipped --note "<reason>"` and add X to the blacklist in `profile/profile.md` §7 |
 
-Find the file first when the user only gives a company name: `python3 scripts/scout.py list | grep -i <company>`. If several rows match, ask which role.
+Find the file first when the user only gives a company name: `python3 scripts/seekter.py list | grep -i <company>`. If several rows match, ask which role.
 
 ## B. Inbox sweep (when the user asks, or weekly)
 
@@ -32,4 +32,4 @@ Postings with no reply after 30 days: `move … closed --note "no response after
 
 ## C. Finish
 
-`python3 scripts/scout.py index`, then report in two lines: what moved where, and anything that needs the user.
+`python3 scripts/seekter.py index`, then report in two lines: what moved where, and anything that needs the user.

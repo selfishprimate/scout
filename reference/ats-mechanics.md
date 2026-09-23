@@ -371,6 +371,22 @@ Section = vendor name; BambooHR, Revolut and account walls → Hand off; Viterbi
 - **Submit:** mandatory "(Required) Allow us to process your personal information". It is a "pretty checkbox": the real `input` is 0x0 and its `.checked` stays **false** even once the box is visibly ticked, so the DOM flag is useless. Click the visible `.pretty` container by coordinate and **verify with a zoom**, not with JS. A failed submit re-renders the form and clears it, so re-tick before every retry.
 - **Salary answers are number-only** even though the field is `type=text` with no pattern. "GBP 50,000 to 62,000 per year" failed with "Text based answers to questions does not match required format"; a bare `62000` passed. The other text answers survive the failed submit, so only the number needs fixing.
 
+## Personio (`<company>.jobs.personio.de/job/<id>/apply`)
+
+- Reached from aggregators through a `t.gohiring.com/h/<hash>` redirect. Don't guess the tenant from
+  the company name: a hand-built `<company>.jobs.personio.de` guess landed on Personio's own
+  marketing site (measured 23 Sept on UP42). Follow the redirect instead.
+- Plain ids (`field-first_name`, `field-email`, `field-available_from`, `field-salary_expectations`,
+  `field-custom_attribute_<n>`); the native setter works on all of them.
+- **`field-available_from` accepts a plain ISO date** (`2026-10-07`) even though it is `type=text`
+  with a datepicker attached. No need to fight the calendar widget.
+- **Three file inputs, always**: `doc-input-cv`, `doc-input-cover-letter`, `doc-input-other`, all
+  with identical `Add file` context, so `find` cannot tell them apart. Disable and hide the other
+  two, expose `doc-input-cv`, then `find` and upload; restore afterwards. After upload
+  `input.files` is **empty** because Personio swaps the element, so confirm from the filename
+  rendered under the `CV*` heading.
+- The optional `field-gender` select stays empty; it is demographic data with no employer requirement.
+
 ## Sage HR (`talent.sage.hr/jobs/<uuid>`)
 
 - Short form: first name, last name, email, phone, one CV upload, then consents. No residence or

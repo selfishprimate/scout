@@ -389,6 +389,19 @@ Section = vendor name; BambooHR, Revolut and account walls → Hand off; Viterbi
   rendered under the `CV*` heading.
 - The optional `field-gender` select stays empty; it is demographic data with no employer requirement.
 
+## Teamtailor, addendum (measured 23 Sept, Leadtech)
+
+- The apply modal can **open scrolled past a Personal information block** (first name, last name,
+  email, phone) that sits above the screening questions. Nothing hints at it: the questions fill
+  fine, and submit then closes the modal and returns to the job description with **no request made
+  and no visible error**, which reads exactly like a silent failure. Scroll the modal to the top and
+  to the bottom before concluding anything, and re-open it: Teamtailor **keeps every answer**.
+- `candidate_phone` wants the **national number** (`5076378440`), not E.164. The country code is a
+  separate selector, and an E.164 value leaves the field outlined red with "Name or email is required"
+  shown instead of a phone error.
+- Consent checkboxes can be duplicated: two identical 24-month talent-pool consents, one whose label
+  starts with "Required." and one without. Tick the first, leave the second.
+
 ## Recruitly (`boards.recruitly.app/job/<a>/<b>`)
 
 - Recruitment-agency boards. Two-step wizard: step 1 is name, CV, email, phone with a **Continue**

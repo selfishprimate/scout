@@ -88,7 +88,9 @@ Location fit codes and their tracker labels are in the profile.
 3. **B**: ambiguous remote, no country stated. Answer honestly if the form asks.
 4. **C**: relocation where the posting **explicitly** offers sponsorship/relocation.
 5. **C**: relocation where the form offers a "requires sponsorship" option.
-6. **X**: skip (sensitive sector, blacklist, language, residence requirement, forbidden relocation region, no sponsorship, clearly under band, people management, aggregator).
+6. **X**: skip (sensitive sector, blacklist, language, residence requirement, forbidden relocation region, no sponsorship, people management, aggregator).
+
+**Pay is not on that list and must never be added to it.** Salary belongs to §4, where it is an answer to a form question. A low published band, or none at all, is not a skip reason, not a deprioritisation, and not a question for the user, unless the candidate's own profile says otherwise.
 
 Modifiers: newest postings early (first 1–2 hours = few applicants); high applicant count + low activity moves down; "work from anywhere" + "authorized in **your** country" moves up.
 
@@ -132,7 +134,7 @@ Use the profile's **voice** section and **fact bank**. Engine rules that always 
 - If the Chrome extension disconnects: log progress with `scripts/scout.py`, list the queue, ask the user to reopen Chrome. Don't switch to a browser that can't upload files for CV forms.
 - **Don't start side projects.** When the user states a new rule mid-run, save it to the profile (§7 step 2) and go back to applying.
 
-**Stop and ask only when:** salary clearly under band · a hard knockout answered No · personal data that would need guessing · the role isn't really in scope or its core is local-language writing · money required · a sector marked "ask". Everything else: decide, log, move on. If the user said they're away, don't interrupt at all; collect questions for the report.
+**Stop and ask only when:** a hard knockout answered No · personal data that would need guessing · the role isn't really in scope or its core is local-language writing · money required · a sector marked "ask". Everything else: decide, log, move on. If the user said they're away, don't interrupt at all; collect questions for the report.
 
 ## 7. Close the run (never skipped)
 

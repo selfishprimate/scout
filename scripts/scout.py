@@ -386,7 +386,20 @@ def cmd_move(a):
         sys.exit("not found")
     note = f"- {TODAY}: {a.status}" + (f". {a.note}" if a.note else "")
     if r["_kind"] == "row" and a.status == "skipped":
-        print("already skipped: " + label(r)); return
+        if not a.note:
+            print("already skipped: " + label(r)); return
+        # Re-annotating a skip is the only way to correct a reason that turned out to be
+        # wrong, because the tracker is CLI-only and hand-editing the table is forbidden.
+        # Keep the original reason and append the correction after it, dated, so the
+        # record shows both what was decided and why it changed.
+        remove(r)
+        meta = {k: v for k, v in r.items() if not k.startswith("_")}
+        meta.update(status="skipped", updated=TODAY,
+                    notes=" ".join(x for x in (r.get("notes", ""), f"[{TODAY}] {a.note}") if x))
+        path = save(meta)
+        print(path.relative_to(ROOT))
+        cmd_index(None, quiet=True)
+        return
     if r["_kind"] == "row":
         # a skip turned into something else: it gets its own file
         remove(r)

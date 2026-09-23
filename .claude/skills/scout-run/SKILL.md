@@ -35,12 +35,13 @@ Alerts, notifications and searches are **separate channels. None is a backup for
 |---|---|---|
 | 1 | **freehire API sweep** (+ Jobicy) | `python3 scripts/freehire_sweep.py`, then `--detail <n>` per candidate |
 | 2 | **LinkedIn job-alert notifications** | Harvest `originToLandingJobPostings` IDs → Voyager detail |
-| 3 | **LinkedIn searches** (every row of `linkedin.searches` in `profile/search.json`, unquoted, sortBy DD) | Voyager REST search, max 3 per JS call |
+| 3 | **LinkedIn searches** (every row of `linkedin.searches` in `profile/search.json`, unquoted, **relevance order, never sortBy DD**) | Voyager REST search, max 3 per JS call |
 | 4 | **LinkedIn tracker** (saved + drafts) | `jobs-tracker/?stage=draft`, "Continue" on the job page |
 | 5 | **Other boards** at the cadence in the profile | Per-board notes |
 
 Rules:
 - **Unquoted keywords always.** Quotes kill recall in both search and alerts. Search wide, filter by title and description.
+- **Relevance order, never date order.** `sortBy=DD` / `sortBy:List(DD)` reorders a loose multi-word query by posting time, and LinkedIn's loose matching means the newest thing matching *any* word wins. Keep freshness with `timePostedRange` instead, which is a filter, not an ordering. Measured 23 Sept on one query, one geography, one 3-day window: **relevance returned 25 results of which 25 were on-discipline; `sortBy DD` returned 25 of which 1 was.** The same day's full sweep ran 16 searches under DD and got 342 raw down to 59 title matches, a 17% hit rate, while a single relevance query surfaced **19 design postings that had never been in the tracker at all**. This is the same lesson already written down for the freehire API ordering; it was never carried across to LinkedIn.
 - Exhaust the chain before saying "nothing found". Don't invent new sources to rescue a thin day; sometimes the market is empty.
 - The report **must end with this table filled in** (step, ran?, jobs seen, candidates, applications). A skipped step must be visible without the user asking.
 - **A skipped source step is a failed run, not a short one.** If room is running out, cut the number of applications, never the number of sources.

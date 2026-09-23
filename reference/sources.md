@@ -58,12 +58,12 @@ JSON.stringify([...ids])
 
 #### Search URL (UI) and parameters
 ```
-https://www.linkedin.com/jobs/search/?keywords=<term>&f_WT=2&f_TPR=r86400&geoId=<geoId>&sortBy=DD
+https://www.linkedin.com/jobs/search/?keywords=<term>&f_WT=2&f_TPR=r86400&geoId=<geoId>
 ```
 - `f_WT=2` = remote.
 - `f_TPR=r86400` (24 h) / `r259200` (3 days) / `r604800` (7 days) / `r2592000` (30 days).
 - `f_E=4,5,6` = mid-senior and above.
-- `sortBy=DD` = newest first.
+- `sortBy=DD` = newest first. **Do not use it.** It is an ordering, not a filter, and on a loose multi-word query it ranks by posting time across everything matching any single word, which floods the result set with other industries. Use `f_TPR` for freshness and leave the ordering at relevance. Measured 23 Sept, one query, EEA, 3-day window: relevance 25/25 on-discipline, `sortBy=DD` 1/25. The same trap as `sort=posted_at` on the freehire API, documented there since the first week and never transferred here.
 - Pagination: `&start=25,50,75...`.
 - **Don't use `f_AL=true` (Easy Apply filter).** It breaks keyword matching: with it on, a two-word title returned roles from unrelated disciplines. Detect Easy Apply from `applyMethod` instead: no `companyApplyUrl` means Easy Apply.
 - **geoIds** (extend as the candidate's geography needs; read a new one out of the URL after picking the location in the UI): `91000002` EEA · `92000000` Worldwide · `102105699` TR · `102890719` NL · `101282230` DE · `104738515` IE · `105646813` ES · `103350119` IT · `105072130` PL · `105015875` FR · `100364837` PT · `101165590` UK. EEA doesn't cover the UK or Switzerland, so search them separately.
@@ -104,10 +104,14 @@ window.__jobs.filter(j=>/sponsor|relocat|visa|EMEA|anywhere in the world|worldwi
 #### Voyager search endpoint: current working REST version (16 Sept)
 ```js
 window.SEARCH=function(key,kw,geo,remote,tpr,start){
+  // Relevance order. Never add sortBy:List(DD) here — see "sortBy=DD" above.
+  // Filters are joined, so no leading comma can sneak in when one is absent.
+  var f=[];
+  if(remote)f.push('workplaceType:List(2)');
+  if(tpr)f.push('timePostedRange:List('+tpr+')');
   var q='(origin:JOB_SEARCH_PAGE_OTHER_ENTRY,keywords:'+encodeURIComponent(kw)+
-        ',locationUnion:(geoId:'+geo+'),selectedFilters:(sortBy:List(DD)'+
-        (remote?',workplaceType:List(2)':'')+
-        (tpr?',timePostedRange:List('+tpr+')':'')+'),spellCorrectionEnabled:true)';
+        ',locationUnion:(geoId:'+geo+'),selectedFilters:('+f.join(',')+
+        '),spellCorrectionEnabled:true)';
   var u='https://www.linkedin.com/voyager/api/voyagerJobsDashJobCards'+
         '?decorationId=com.linkedin.voyager.dash.deco.jobs.search.JobSearchCardsCollection-220'+
         '&count=25&q=jobSearch&query='+q+'&start='+(start||0);
@@ -132,6 +136,7 @@ window.SEARCH=function(key,kw,geo,remote,tpr,start){
 - Output is cut off at about 1000 characters; slice large outputs.
 - REPL semantics: no `return`, the last expression is the result.
 - **CSRF** = `document.cookie.match(/JSESSIONID="?([^";]+)"?/)`.
+- **Parentheses in a keyword silently return 0.** The Voyager `query=` value is a DSL whose own grammar is built from `(` and `)`, and `encodeURIComponent` does **not** escape those two characters. A keyword the user typed with brackets, e.g. a title plus a parenthesised specialism, corrupts the query and comes back empty, which reads as "no such jobs". Escape them to `%28`/`%29` by hand, or strip them: they add nothing, since LinkedIn treats the query as loose anyway.
 - **DOM scraping doesn't work.** The list is virtualized: 18 of 25 off-screen `li[data-occludable-job-id]` cards are empty. The list container is found with the helper below. `LIST().scrollTop` works, but the list still doesn't render every step. **The API is always better**.
 ```js
 window.LIST=function(){return [...document.querySelectorAll('div')].filter(function(e){

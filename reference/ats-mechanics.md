@@ -16,6 +16,7 @@ Placeholders: `<FIRST_NAME>`, `<LAST_NAME>`, `<FULL_NAME>`, `<EMAIL>`, `<PHONE_L
 - **`computer.key` ignores `count`.** `{action:"key", text:"BackSpace", count:8}` presses once. Write N separate key actions inside `browser_batch`.
 - **Number-only fields** ("How many years…", many salary fields, even text-looking ones): digits only; currency/range go in a free-text field, else pick one number. Clear with `End` + one `BackSpace` per character (invalid number inputs report `value===''`).
 - **Never click a native file picker** ("Choose a file", dropzones) — the OS dialog locks the browser. `find` the `input[type=file]` (expose it via JS if hidden) → `file_upload`.
+- **When transferring a file into a shadow-DOM input, filter by `.pdf`, not by "is a file input".** A walk that collects every `input[type=file]` will also hand the CV to the avatar/photo slot, which rejects it and leaves a red format error on the form (measured 23 Sept, SmartRecruiters). And do not clear by matching image extensions either: a resume input's `accept` list often ends with the image types too, so that clears the CV as well. Discriminate on `.pdf` in both directions.
 - **File source:** `file_upload` reads paths the session is allowed to read. On a local checkout that is the repo's own `profile/documents/` by absolute path (verified 23 Sept); in a sandboxed session it was only the mounted uploads folder, not Drive and not the outputs folder. Scheduled runs may lack the mount → CV forms need a live session.
 - **Verify which file input you hit.** `find` ranks by its own guess and forms often have two or three (`Photo`, autofill-import, `Resume`, portfolio). After every upload, read back which input holds the file, or read the page text around the filename, before moving on. Measured twice: a CV into a portfolio slot (22 Sept, Kinsta) and a Workable form whose *first* `input[type=file]` is **Photo**, not Resume (23 Sept, Landytech). `input.files` can also be empty after a successful upload when the ATS swaps the element (Greenhouse) — in that case confirm from the rendered filename instead. Claude's own browser panel (`mcp__remote-devices__Claude_Browser__*`) has no upload → CV forms need Chrome (`mcp__claude-in-chrome__*`). Page-side CV fetch (CSP/CORS) and base64 injection don't work.
 - **Upload silently fails?** Check `read_network_requests` for `s3.*.amazonaws.com`; compare `fetch('https://s3.amazonaws.com/',{mode:'no-cors'})` vs `fetch('https://www.google.com/',{mode:'no-cors'})`. S3 unreachable = network; don't retry, leave tab open, report.
@@ -339,7 +340,8 @@ Section = vendor name; BambooHR, Revolut and account walls → Hand off; Viterbi
 
 ## SmartRecruiters
 
-- **URLs:** `jobs.smartrecruiters.com/<Company>`.
+- **URLs:** `jobs.smartrecruiters.com/<Company>`. "I'm interested" leads to `/oneclick-ui/company/<Co>/publication/<uuid>`, then a second `/screening` page of employer questions.
+- **The phone widget guesses the country from the job, not the candidate.** It set Germany +49 for a Munich role even though the city field said Istanbul. Writing the full E.164 number into the field corrects the flag. Check it: the number is silently wrong otherwise.
 - **Set values:** If `document.querySelectorAll('input')` returns ~1 result, fields are in shadow DOM: `read_page` won't see them, coordinate click + `type` works. Textarea can't be cleared by keys (text goes mid-string) — get it right first time or reset with:
   ```js
   const s=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set;
@@ -386,6 +388,24 @@ Section = vendor name; BambooHR, Revolut and account walls → Hand off; Viterbi
   `input.files` is **empty** because Personio swaps the element, so confirm from the filename
   rendered under the `CV*` heading.
 - The optional `field-gender` select stays empty; it is demographic data with no employer requirement.
+
+## Recruitly (`boards.recruitly.app/job/<a>/<b>`)
+
+- Recruitment-agency boards. Two-step wizard: step 1 is name, CV, email, phone with a **Continue**
+  button; step 2 holds nationality, languages, expected salary range and the consent. **Step 2's
+  fields exist in the DOM before you reach them**, so values written early are silently discarded.
+  Fill each step after it renders.
+- Fields have no `id`, only `name` (`firstName`, `surname`, `applicantEmail`, `applicantPhone`,
+  `expectedPay.minPay`, `expectedPay.maxPay`, `agreedPrivacyPolicy`). Use `[name="…"]`.
+- Nationality and Languages are **Tom Select** multi-selects (`tomselect-N-ts-control`). Two traps:
+  a JS `.focus()` does not make them active (`document.activeElement` stays elsewhere), so click by
+  coordinate and confirm `activeElement`; and while their dropdown is open, **a stray click adds
+  whatever option is under the cursor** (added "Aland Island" once). Escape the list before clicking
+  anything else, and re-read the chips after every pick.
+- Languages are levelled entries, not bare names: type `English > Full` and pick the single result.
+  C1 maps to **"English > Full Professional"**.
+- Cloudflare Turnstile sits on the submit and self-solves; `cf-turnstile-response` reads empty right
+  up to the click and the submit still goes through. Confirmation is **"Application received"**.
 
 ## Sage HR (`talent.sage.hr/jobs/<uuid>`)
 

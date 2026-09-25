@@ -28,6 +28,7 @@ Requirements: [Claude Code](https://docs.claude.com/en/docs/claude-code), the Cl
 | `/seekter-run` | The daily run. Five sources in a fixed order (freehire API, LinkedIn alert notifications, LinkedIn searches, LinkedIn saved/drafts, other boards), filtering, dedup, form filling, tracker update, and a report with a per-source table. Applies without asking when a posting fits; stops only for things only you can decide. |
 | `/seekter-log` | Records what happened next: rejections, interviews, offers, applications you made by hand, or a sweep of your inbox. |
 | `/seekter-report` | Funnel and response rate by source and by location track, top skip reasons, open hand-offs, and at most two suggested changes. |
+| `/seekter-git` | Ships the kit. Branches, commits and pushes the shareable files (skills, references, scripts) after a run has taught Seekter something, and scans the diff for your personal details first so they never leave your machine. Your profile, applications and runs are never committed. |
 
 ## Daily use
 
@@ -37,6 +38,7 @@ Requirements: [Claude Code](https://docs.claude.com/en/docs/claude-code), the Cl
 | Every working day | `/seekter-run` | Chrome open with the Claude in Chrome extension, logged in to LinkedIn. |
 | When a company replies, or weekly | `/seekter-log` | For an inbox sweep: your webmail open and logged in, in the same Chrome. |
 | Weekly | `/seekter-report` | Nothing. It reads the tracker only. |
+| After a run changes a skill or a reference | `/seekter-git` | A git remote you can push to. Optional: `gh` for the pull request. |
 
 Run `/seekter-log` **before** `/seekter-report`. The report reads `applications/` and `runs/`, not your email, so replies that haven't been logged don't show up in it.
 
@@ -131,7 +133,7 @@ Column names are matched loosely (Position/Role/Title, Company, Status, Job URL,
 ## What's in the repo
 
 ```
-.claude/skills/     seekter-init · seekter-run · seekter-log · seekter-report
+.claude/skills/     seekter-init · seekter-run · seekter-log · seekter-report · seekter-git
 reference/          sources.md (how each job source works) · ats-mechanics.md (how each form system behaves)
 templates/          profile.md · search.example.json
 scripts/            seekter.py · freehire_sweep.py · import_csv.py

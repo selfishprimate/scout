@@ -1,0 +1,81 @@
+name: leak scan
+
+# The kit is public. The private data is excluded by path in .gitignore, but
+# .gitignore protects paths, not content: the real failure mode is a candidate's
+# phone number quoted inside reference/ats-mechanics.md as a worked example.
+# That happened, and sat in a public repo until 25 Sept 2026.
+#
+# This job cannot run the full scan that /seekter-git runs locally, because that
+# one builds its needle list from profile/profile.md and the profile is never
+# committed. What is left is path enforcement, which is exact, and a few
+# identity patterns, which are approximate. It would have caught the one leak
+# this repo actually had.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Work out what changed
+        id: range
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+            echo "head=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "base=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+            echo "head=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: No private paths may be committed
+        run: |
+          set -euo pipefail
+          BAD=$(git diff --name-only --diff-filter=A \
+                  "${{ steps.range.outputs.base }}" "${{ steps.range.outputs.head }}" \
+                | grep -E '^(profile|applications|runs)/' || true)
+          if [ -n "$BAD" ]; then
+            echo "::error::Files under a private path were added. These are the candidate's data and must never be committed."
+            echo "$BAD"
+            exit 1
+          fi
+          echo "No private paths added."
+
+      - name: No identity values in added lines
+        run: |
+          set -euo pipefail
+          DIFF=$(git diff -U0 "${{ steps.range.outputs.base }}" "${{ steps.range.outputs.head }}" -- . ':!.github/workflows/leak-scan.yml' | grep '^+' | grep -v '^+++' || true)
+
+          fail=0
+          report() { echo "::error::$1"; echo "$2"; fail=1; }
+
+          # Real email addresses. Anthropic's commit trailer and example.* are expected.
+          HITS=$(printf '%s\n' "$DIFF" \
+            | grep -Eo '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' \
+            | grep -viE '@(example|test|localhost)\.|noreply@anthropic\.com|@(company|employer|ats)\.' || true)
+          [ -n "$HITS" ] && report "An email address was added. Replace it with <EMAIL> or a placeholder domain." "$HITS"
+
+          # E.164 and spaced national formats.
+          HITS=$(printf '%s\n' "$DIFF" \
+            | grep -Eo '\+[0-9]{2}[0-9 ]{7,17}[0-9]|\b[0-9]{3} [0-9]{3} [0-9]{2} [0-9]{2}\b' || true)
+          [ -n "$HITS" ] && report "A phone number was added. Use <PHONE_LOCAL> and describe the widget, not the person." "$HITS"
+
+          # A bare 10-11 digit run only counts when the line is talking about a phone.
+          # Job ids in this repo are 10 and 15 digits, so an unconditional rule is useless.
+          HITS=$(printf '%s\n' "$DIFF" \
+            | grep -iE 'phone|tel|mobile|gsm' \
+            | grep -Eo '\b[0-9]{10,11}\b' || true)
+          [ -n "$HITS" ] && report "A digit run that looks like a phone number was added on a line about phones." "$HITS"
+
+          if [ "$fail" = "1" ]; then
+            echo "::notice::If a mechanics note cannot be written without a private value, the note is wrong, not the rule."
+            exit 1
+          fi
+          echo "No identity values found in added lines."

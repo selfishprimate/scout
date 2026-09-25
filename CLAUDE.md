@@ -6,7 +6,7 @@ Seekter is a job-search agent that runs inside Claude Code: it searches job sour
 
 | Path | What | Git |
 |---|---|---|
-| `.claude/skills/seekter-*/SKILL.md` | The four commands: `/seekter-init`, `/seekter-run`, `/seekter-log`, `/seekter-report` | tracked |
+| `.claude/skills/seekter-*/SKILL.md` | The five commands: `/seekter-init`, `/seekter-run`, `/seekter-log`, `/seekter-report`, `/seekter-git` | tracked |
 | `reference/sources.md` | How each job source works (APIs, LinkedIn scripts, boards, inbox) | tracked |
 | `reference/ats-mechanics.md` | How each application form system behaves (Greenhouse, Ashby, Workday, Lever…) | tracked |
 | `templates/` | Profile and search-config templates that `/seekter-init` fills | tracked |
@@ -26,6 +26,7 @@ Seekter is a job-search agent that runs inside Claude Code: it searches job sour
 5. **Language of the chat** follows the user. Files in this repo (skills, references, tracker notes) are written in English so the kit stays shareable.
 6. When the user states a new standing rule, write it into `profile/profile.md` (quote their words) and carry on.
 7. When a form system or source behaves in a new way, update the matching section in `reference/` so the next run doesn't relearn it. Keep those files person-independent.
+8. **Kit changes reach git only through `/seekter-git`.** A run that edits a skill or a reference says what it changed and stops; it does not branch, commit or push on its own. That skill also runs the leak scan, because rule 1 is enforced at the commit, not just at the keyboard.
 
 ## Requirements
 

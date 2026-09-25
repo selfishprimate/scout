@@ -23,10 +23,12 @@ Find the file first when the user only gives a company name: `python3 scripts/se
 
 Follow "Reply analysis" in `reference/sources.md`: open the user's webmail in Claude in Chrome, collect messages since the last sweep, **read bodies, not subjects**, and match with the rejection regex there (then read the matched sentence; boilerplate like "if you are not selected" is a false positive).
 
+**Read every folder the profile's §11 table lists**, and re-read that table each sweep rather than trusting a remembered count: the list grows. It went from three folders to four on 25 Sept when **Action Required** was added for mail that asks the candidate to act.
+
 For each reply:
 1. Match it to a tracker row by company (and role if several). No match → it's an application missing from the tracker: `add` it with `--source inbox`.
 2. `move` it to `rejected` / `interviewing` / `offer` with a one-line note and the mail date.
-3. Anything asking the user to act (take-home, scheduling link, questions) → tell the user; never reply on their behalf.
+3. Anything asking the user to act (take-home, scheduling link, questions) → tell the user; never reply on their behalf. **Move that mail into the `Action Required` folder** so it is not buried in the hundreds of confirmations in Job Application. Move it back to Job Application once the thing is done. Rejections and "we received your application" mails never go there.
 
 Postings with no reply after 30 days: `move … closed --note "no response after 30 days"` only when the user asks for a clean-up.
 

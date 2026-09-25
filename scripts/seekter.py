@@ -49,6 +49,15 @@ def job_key(url: str) -> str:
             return f"greenhouse:{q[k][0]}"
     if "ats_id" in q:
         return f"ats:{q['ats_id'][0].lower()}"
+    # Same trap as Indeed below, but on company careers sites: the posting id lives in a
+    # generic query param (?jobId=, ?gh_src=..., ?requisitionId=) and the path is identical
+    # for every opening, so without this every Celonis/Workday-style posting collapses to
+    # "<host>/job-detail" and the first one tracked makes all the others look like duplicates.
+    # Measured 24 Sept: careers.celonis.com had two design roles that keyed identically.
+    for k in ("jobid", "job_id", "requisitionid", "reqid", "posting_id", "postingid", "vacancyid"):
+        for qk, qv in q.items():
+            if qk.lower() == k and qv and re.fullmatch(r"\d{4,}", qv[0]):
+                return f"{host}:{qv[0]}"
     # Indeed keeps the posting id in the query string (?jk=, ?vjk= on a search page).
     # Without this, every posting on a domain collapses to "<host>/viewjob" and the
     # first one tracked makes all the others look like duplicates.
@@ -56,6 +65,16 @@ def job_key(url: str) -> str:
         for k in ("jk", "vjk"):
             if q.get(k):
                 return f"indeed:{q[k][0].lower()}"
+    # Breezy slugs are "<position_id>-<title-slug>", and the employer can rename a posting
+    # without opening a new one. Keying on the whole path makes a rename look like a brand
+    # new job. Measured 25 Sept: Cal.com's ff94f3182ac2 was applied to on 18 Sept as
+    # "senior-product-designer", was re-read today as "senior-product-design-engineer",
+    # passed dedup as NEW, and only Breezy's own server caught it ("It looks like maybe
+    # you've already applied to this job?") after the form was filled. Key on the id alone.
+    if "breezy.hr" in host:
+        m = re.search(r"/p/([0-9a-f]{8,})", path, re.I)
+        if m:
+            return f"breezy:{m.group(1).lower()}"
     m = re.search(UUID, path, re.I)
     if m:
         return f"uuid:{m.group(0).lower()}"
